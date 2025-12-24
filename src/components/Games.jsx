@@ -125,6 +125,38 @@ export default function Games({ onBack }) {
     setStep('guest-joining');
   };
 
+  // Extract actual SDP code from various input formats (URL, compressed, or raw)
+  const extractCode = (input) => {
+    const trimmed = input.trim();
+
+    // Check if it's a URL with game param
+    if (trimmed.includes('?game=')) {
+      try {
+        const url = new URL(trimmed);
+        const gameParam = url.searchParams.get('game');
+        if (gameParam) {
+          if (gameParam.startsWith('join=')) {
+            return decompressCode(gameParam.replace('join=', ''));
+          }
+          if (gameParam.startsWith('answer=')) {
+            return decompressCode(gameParam.replace('answer=', ''));
+          }
+        }
+      } catch {}
+    }
+
+    // Check if it looks like compressed LZ-string (no spaces, no newlines, starts with letters)
+    if (!trimmed.includes(' ') && !trimmed.includes('\n') && !trimmed.startsWith('{') && !trimmed.startsWith('ey')) {
+      const decompressed = decompressCode(trimmed);
+      if (decompressed && decompressed.startsWith('{')) {
+        return decompressed;
+      }
+    }
+
+    // Return as-is (raw SDP code)
+    return trimmed;
+  };
+
   // Guest accepts host's offer
   const joinWithCode = async () => {
     if (!inputCode.trim()) return;
@@ -133,7 +165,8 @@ export default function Games({ onBack }) {
     peerRef.current = new PeerConnection(handleMessage, handleConnectionChange);
 
     try {
-      const answer = await peerRef.current.acceptOffer(inputCode.trim());
+      const code = extractCode(inputCode);
+      const answer = await peerRef.current.acceptOffer(code);
       setAnswerCode(answer);
     } catch (e) {
       alert('Invalid code. Please try again.');
@@ -146,7 +179,8 @@ export default function Games({ onBack }) {
     if (!inputCode.trim()) return;
 
     try {
-      await peerRef.current.acceptAnswer(inputCode.trim());
+      const code = extractCode(inputCode);
+      await peerRef.current.acceptAnswer(code);
     } catch (e) {
       alert('Invalid answer code. Please try again.');
     }
