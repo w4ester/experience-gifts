@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f43f5e"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Gift box body -->
+  <rect x="106" y="230" width="300" height="200" rx="24" fill="#fff"/>
+  <!-- Ribbon horizontal -->
+  <rect x="106" y="230" width="300" height="50" rx="12" fill="#fff" fill-opacity="0.7"/>
+  <!-- Ribbon vertical -->
+  <rect x="220" y="230" width="72" height="200" fill="rgba(244,63,94,0.3)"/>
+  <!-- Bow -->
+  <path d="M256 130 C200 130 180 180 180 200 C180 220 200 235 220 225 C240 215 250 180 256 155 C262 180 272 215 292 225 C312 235 332 220 332 200 C332 180 312 130 256 130Z" fill="#fff"/>
+  <!-- Bow center -->
+  <circle cx="256" cy="210" r="28" fill="#fff"/>
+</svg>

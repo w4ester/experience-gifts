@@ -1,0 +1,25 @@
+{
+  "name": "experience-gifts",
+  "version": "1.0.0",
+  "description": "Digital coupon booklet app for experience-based family gifts",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "lucide-react": "^0.469.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
