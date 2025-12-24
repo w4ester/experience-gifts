@@ -1,9 +1,12 @@
-import { Redis } from '@upstash/redis';
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Only initialize Redis if credentials are provided
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const { Redis } = require('@upstash/redis');
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
 
 export default async function handler(req, res) {
   // CORS headers
@@ -19,6 +22,11 @@ export default async function handler(req, res) {
 
   if (!id) {
     return res.status(400).json({ error: 'Booklet ID required' });
+  }
+
+  // Check if Redis is configured
+  if (!redis) {
+    return res.status(503).json({ error: 'Cloud sync not configured' });
   }
 
   try {

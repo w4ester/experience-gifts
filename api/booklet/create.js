@@ -1,10 +1,14 @@
-import { Redis } from '@upstash/redis';
 import { randomUUID } from 'crypto';
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Only initialize Redis if credentials are provided
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const { Redis } = require('@upstash/redis');
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
 
 export default async function handler(req, res) {
   // CORS headers
@@ -18,6 +22,11 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Check if Redis is configured
+  if (!redis) {
+    return res.status(503).json({ error: 'Cloud sync not configured' });
   }
 
   try {
