@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { shareCoupon, downloadICS, getGoogleCalendarURL, getOutlookCalendarURL, getEmailURL, printCoupon } from './utils/couponActions';
+import { createBooklet, fetchBooklet, updateBooklet, getShareUrl, getBookletIdFromUrl } from './utils/cloudSync';
 import Games from './components/Games';
 
 // ============================================
@@ -68,43 +69,138 @@ export default function ExperienceGifts() {
   const [scheduleModalCoupon, setScheduleModalCoupon] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // Load from URL hash or localStorage on mount
+  // Cloud sync state
+  const [bookletId, setBookletId] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('local'); // 'local', 'syncing', 'synced', 'error'
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const saveTimeoutRef = useRef(null);
+  const pollIntervalRef = useRef(null);
+
+  // Load from URL (cloud ID or hash) or localStorage on mount
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash && hash.startsWith('booklet=')) {
-      const encoded = hash.replace('booklet=', '');
-      const data = decodeBooklet(encoded);
-      if (data) {
-        setBooklet(data.booklet || { title: '', recipient: '', theme: '🎄 Holiday' });
-        setCoupons(data.coupons || []);
-        setGifters(data.gifters || DEFAULT_GIFTERS);
-        setCurrentView('view-booklet');
-        // Clear the hash after loading
-        window.history.replaceState(null, '', window.location.pathname);
-        return;
+    const loadData = async () => {
+      // Check for cloud booklet ID in URL first
+      const cloudId = getBookletIdFromUrl();
+      if (cloudId) {
+        setSyncStatus('syncing');
+        const data = await fetchBooklet(cloudId);
+        if (data) {
+          setBookletId(cloudId);
+          setBooklet(data.booklet || { title: '', recipient: '', theme: '🎄 Holiday' });
+          setCoupons(data.coupons || []);
+          setGifters(data.gifters || DEFAULT_GIFTERS);
+          setSyncStatus('synced');
+          setLastSyncTime(new Date());
+          setCurrentView('view-booklet');
+          // Keep the URL clean but preserve the ID
+          window.history.replaceState(null, '', `?id=${cloudId}`);
+          return;
+        }
+        setSyncStatus('error');
       }
-    }
-    
-    // Fall back to localStorage
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const data = JSON.parse(saved);
-        setBooklet(data.booklet || { title: '', recipient: '', theme: '🎄 Holiday' });
-        setCoupons(data.coupons || []);
-        setGifters(data.gifters || DEFAULT_GIFTERS);
+
+      // Check for legacy hash-based sharing
+      const hash = window.location.hash.slice(1);
+      if (hash && hash.startsWith('booklet=')) {
+        const encoded = hash.replace('booklet=', '');
+        const data = decodeBooklet(encoded);
+        if (data) {
+          setBooklet(data.booklet || { title: '', recipient: '', theme: '🎄 Holiday' });
+          setCoupons(data.coupons || []);
+          setGifters(data.gifters || DEFAULT_GIFTERS);
+          setCurrentView('view-booklet');
+          window.history.replaceState(null, '', window.location.pathname);
+          return;
+        }
       }
-    } catch (e) {
-      console.log('No saved data');
-    }
+
+      // Fall back to localStorage
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const data = JSON.parse(saved);
+          setBooklet(data.booklet || { title: '', recipient: '', theme: '🎄 Holiday' });
+          setCoupons(data.coupons || []);
+          setGifters(data.gifters || DEFAULT_GIFTERS);
+          if (data.bookletId) {
+            setBookletId(data.bookletId);
+            setSyncStatus('synced');
+          }
+        }
+      } catch (e) {
+        console.log('No saved data');
+      }
+    };
+
+    loadData();
   }, []);
 
   // Save to localStorage on changes
   useEffect(() => {
     if (booklet.title || coupons.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ booklet, coupons, gifters }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ booklet, coupons, gifters, bookletId }));
     }
-  }, [booklet, coupons, gifters]);
+  }, [booklet, coupons, gifters, bookletId]);
+
+  // Cloud sync - save to cloud with debounce
+  useEffect(() => {
+    if (!bookletId || syncStatus === 'local') return;
+
+    // Debounce saves
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSyncStatus('syncing');
+      const result = await updateBooklet(bookletId, { booklet, coupons, gifters });
+      if (result) {
+        setSyncStatus('synced');
+        setLastSyncTime(new Date());
+      } else {
+        setSyncStatus('error');
+      }
+    }, 1000); // Wait 1 second after last change
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [booklet, coupons, gifters, bookletId, syncStatus]);
+
+  // Poll for updates when viewing a synced booklet
+  useEffect(() => {
+    if (!bookletId || currentView !== 'view-booklet') {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      return;
+    }
+
+    const pollForUpdates = async () => {
+      const data = await fetchBooklet(bookletId);
+      if (data && data.updatedAt !== lastSyncTime?.toISOString()) {
+        // Only update if data is newer
+        const remoteTime = new Date(data.updatedAt);
+        if (!lastSyncTime || remoteTime > lastSyncTime) {
+          setBooklet(data.booklet);
+          setCoupons(data.coupons);
+          setGifters(data.gifters);
+          setLastSyncTime(remoteTime);
+        }
+      }
+    };
+
+    // Poll every 5 seconds
+    pollIntervalRef.current = setInterval(pollForUpdates, 5000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [bookletId, currentView, lastSyncTime]);
 
   const addCoupon = (template) => {
     if (!selectedGifter) return;
@@ -146,12 +242,50 @@ export default function ExperienceGifts() {
     ));
   };
 
-  const generateShareUrl = () => {
-    const data = { booklet, coupons, gifters };
-    const encoded = encodeBooklet(data);
-    const url = `${window.location.origin}${window.location.pathname}#booklet=${encoded}`;
-    setShareUrl(url);
-    setShowShareModal(true);
+  const generateShareUrl = async () => {
+    setSyncStatus('syncing');
+
+    try {
+      let id = bookletId;
+
+      // Create cloud booklet if we don't have one yet
+      if (!id) {
+        const result = await createBooklet({ booklet, coupons, gifters });
+        if (result && result.id) {
+          id = result.id;
+          setBookletId(id);
+          setSyncStatus('synced');
+          setLastSyncTime(new Date());
+        } else {
+          // Fall back to hash-based URL if cloud sync fails
+          setSyncStatus('error');
+          const data = { booklet, coupons, gifters };
+          const encoded = encodeBooklet(data);
+          const url = `${window.location.origin}${window.location.pathname}#booklet=${encoded}`;
+          setShareUrl(url);
+          setShowShareModal(true);
+          return;
+        }
+      } else {
+        // Update existing cloud booklet
+        await updateBooklet(id, { booklet, coupons, gifters });
+        setSyncStatus('synced');
+        setLastSyncTime(new Date());
+      }
+
+      const url = getShareUrl(id);
+      setShareUrl(url);
+      setShowShareModal(true);
+    } catch (error) {
+      console.error('Share error:', error);
+      setSyncStatus('error');
+      // Fall back to hash-based URL
+      const data = { booklet, coupons, gifters };
+      const encoded = encodeBooklet(data);
+      const url = `${window.location.origin}${window.location.pathname}#booklet=${encoded}`;
+      setShareUrl(url);
+      setShowShareModal(true);
+    }
   };
 
   const copyToClipboard = async () => {
@@ -187,7 +321,12 @@ export default function ExperienceGifts() {
   };
 
   const handleShareCoupon = async (coupon) => {
-    const url = `${window.location.origin}${window.location.pathname}#booklet=${encodeBooklet({ booklet, coupons, gifters })}`;
+    let url;
+    if (bookletId) {
+      url = getShareUrl(bookletId);
+    } else {
+      url = `${window.location.origin}${window.location.pathname}#booklet=${encodeBooklet({ booklet, coupons, gifters })}`;
+    }
     const result = await shareCoupon(coupon, url);
     if (result.success) {
       if (result.method === 'clipboard') {
@@ -204,7 +343,12 @@ export default function ExperienceGifts() {
   };
 
   const handleEmailCoupon = (coupon) => {
-    const url = `${window.location.origin}${window.location.pathname}#booklet=${encodeBooklet({ booklet, coupons, gifters })}`;
+    let url;
+    if (bookletId) {
+      url = getShareUrl(bookletId);
+    } else {
+      url = `${window.location.origin}${window.location.pathname}#booklet=${encodeBooklet({ booklet, coupons, gifters })}`;
+    }
     window.location.href = getEmailURL(coupon, { bookletUrl: url });
   };
 
@@ -702,15 +846,36 @@ export default function ExperienceGifts() {
               <button onClick={resetAll} className="p-2 -ml-2 hover:bg-white/50 rounded-xl">
                 <ArrowLeft className="w-6 h-6 text-gray-600" />
               </button>
-              <div className="flex gap-2">
-                <button 
+              <div className="flex items-center gap-2">
+                {/* Sync Status Indicator */}
+                {bookletId && (
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                      syncStatus === 'synced' ? 'bg-green-100 text-green-700' :
+                      syncStatus === 'syncing' ? 'bg-amber-100 text-amber-700' :
+                      syncStatus === 'error' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}
+                    title={lastSyncTime ? `Last synced: ${lastSyncTime.toLocaleTimeString()}` : 'Not synced'}
+                  >
+                    {syncStatus === 'synced' && <Cloud className="w-3.5 h-3.5" />}
+                    {syncStatus === 'syncing' && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    {syncStatus === 'error' && <CloudOff className="w-3.5 h-3.5" />}
+                    <span>
+                      {syncStatus === 'synced' ? 'Synced' :
+                       syncStatus === 'syncing' ? 'Syncing...' :
+                       syncStatus === 'error' ? 'Offline' : 'Local'}
+                    </span>
+                  </div>
+                )}
+                <button
                   onClick={() => setCurrentView('add-coupons')}
                   className="p-2 hover:bg-white/50 rounded-xl"
                   title="Edit coupons"
                 >
                   <Edit3 className="w-6 h-6 text-gray-600" />
                 </button>
-                <button 
+                <button
                   onClick={generateShareUrl}
                   className="p-2 hover:bg-white/50 rounded-xl"
                   title="Share booklet"
@@ -890,17 +1055,29 @@ export default function ExperienceGifts() {
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              
-              <p className="text-sm text-gray-500 mb-4">
-                Copy this link and send it to {booklet.recipient || 'the recipient'}. They can open it on any device!
-              </p>
-              
+
+              {bookletId ? (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Cloud className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-green-600 font-medium">Cloud synced!</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Share this link with {booklet.recipient || 'the recipient'}. Changes sync automatically across all devices!
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 mb-4">
+                  Copy this link and send it to {booklet.recipient || 'the recipient'}. They can open it on any device!
+                </p>
+              )}
+
               <div className="bg-gray-100 rounded-xl p-3 mb-4">
                 <div className="text-xs text-gray-600 break-all font-mono">
-                  {shareUrl.slice(0, 80)}...
+                  {shareUrl.length > 80 ? `${shareUrl.slice(0, 80)}...` : shareUrl}
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={copyToClipboard}
