@@ -1,6 +1,47 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X, QrCode, Link, Smartphone } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import LZString from 'lz-string';
 import { PeerConnection } from '../utils/peerConnection';
+
+// Compress/decompress connection codes for shorter URLs
+const compressCode = (code) => {
+  try {
+    return LZString.compressToEncodedURIComponent(code);
+  } catch {
+    return null;
+  }
+};
+
+const decompressCode = (compressed) => {
+  try {
+    return LZString.decompressFromEncodedURIComponent(compressed);
+  } catch {
+    return null;
+  }
+};
+
+// Generate shareable URL with compressed code
+const getJoinUrl = (code, isAnswer = false) => {
+  const compressed = compressCode(code);
+  const param = isAnswer ? 'answer' : 'join';
+  return `${window.location.origin}${window.location.pathname}?game=${param}=${compressed}`;
+};
+
+// Get code from URL if present
+const getCodeFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const joinCode = params.get('game');
+  if (joinCode) {
+    if (joinCode.startsWith('join=')) {
+      return { type: 'offer', code: decompressCode(joinCode.replace('join=', '')) };
+    }
+    if (joinCode.startsWith('answer=')) {
+      return { type: 'answer', code: decompressCode(joinCode.replace('answer=', '')) };
+    }
+  }
+  return null;
+};
 
 // Word list for Wordle (5-letter words)
 const WORDS = ['GIFTS', 'HAPPY', 'JOLLY', 'MERRY', 'PEACE', 'CHEER', 'GRACE', 'HEART', 'LOVED', 'SWEET', 'FAITH', 'BLESS', 'LIGHT', 'SHINE', 'BRIGHT', 'DREAM', 'HOPES', 'JOYFUL', 'SMILE', 'LAUGH'];
@@ -17,8 +58,29 @@ export default function Games({ onBack }) {
   const [gameState, setGameState] = useState(null);
   const [playerRole, setPlayerRole] = useState(null); // 'X' or 'O' for tic-tac-toe, 1 or 2 for others
   const [showHelp, setShowHelp] = useState(false);
+  const [showQR, setShowQR] = useState(true);
+  const [urlFromParams, setUrlFromParams] = useState(null);
 
   const peerRef = useRef(null);
+
+  // Check URL for join code on mount
+  useEffect(() => {
+    const urlCode = getCodeFromUrl();
+    if (urlCode && urlCode.code) {
+      setUrlFromParams(urlCode);
+      if (urlCode.type === 'offer') {
+        // Someone shared an offer URL - go to guest joining
+        setIsHost(false);
+        setStep('guest-joining');
+        setInputCode(urlCode.code);
+      } else if (urlCode.type === 'answer') {
+        // Someone shared an answer URL - host needs to accept
+        setInputCode(urlCode.code);
+      }
+      // Clear URL params
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   // Handle incoming messages
   const handleMessage = (data) => {
@@ -192,29 +254,59 @@ export default function Games({ onBack }) {
           {step === 'host-waiting' && (
             <div className="space-y-6">
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg font-bold text-purple-600">1</span>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <span className="text-lg font-bold text-purple-600">1</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">Share with family</div>
+                      <div className="text-sm text-gray-500">Scan QR or send link</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-800">Send this code</div>
-                    <div className="text-sm text-gray-500">Copy and send to the other player</div>
-                  </div>
+                  {/* Toggle QR/Link view */}
+                  <button
+                    onClick={() => setShowQR(!showQR)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                    title={showQR ? "Show link" : "Show QR code"}
+                  >
+                    {showQR ? <Link className="w-5 h-5 text-gray-500" /> : <QrCode className="w-5 h-5 text-gray-500" />}
+                  </button>
                 </div>
 
-                <div className="bg-gray-100 rounded-xl p-3 mb-3">
-                  <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
-                    {offerCode || 'Generating...'}
-                  </div>
-                </div>
+                {offerCode ? (
+                  showQR ? (
+                    <div className="flex flex-col items-center mb-4">
+                      <div className="bg-white p-4 rounded-xl border-2 border-purple-100">
+                        <QRCodeSVG
+                          value={getJoinUrl(offerCode)}
+                          size={180}
+                          level="L"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                        <Smartphone className="w-4 h-4" />
+                        <span>Scan with phone camera</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-100 rounded-xl p-3 mb-3">
+                      <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
+                        {getJoinUrl(offerCode)}
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-center py-8 text-gray-400">Generating...</div>
+                )}
 
                 <button
-                  onClick={() => copyCode(offerCode)}
+                  onClick={() => copyCode(getJoinUrl(offerCode))}
                   disabled={!offerCode}
                   className="w-full py-3 bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied!' : 'Copy Code'}
+                  {copied ? 'Copied!' : 'Copy Link'}
                 </button>
               </div>
 
@@ -256,17 +348,23 @@ export default function Games({ onBack }) {
                       <span className="text-lg font-bold text-blue-600">1</span>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-800">Enter their code</div>
-                      <div className="text-sm text-gray-500">Paste the code they sent you</div>
+                      <div className="font-medium text-gray-800">
+                        {urlFromParams?.type === 'offer' ? 'Ready to join!' : 'Enter their code'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {urlFromParams?.type === 'offer' ? 'Tap Join to connect' : 'Paste the link or code they sent'}
+                      </div>
                     </div>
                   </div>
 
-                  <textarea
-                    value={inputCode}
-                    onChange={(e) => setInputCode(e.target.value)}
-                    placeholder="Paste the connection code here..."
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm font-mono min-h-[80px] resize-none"
-                  />
+                  {!urlFromParams?.type && (
+                    <textarea
+                      value={inputCode}
+                      onChange={(e) => setInputCode(e.target.value)}
+                      placeholder="Paste link or code here..."
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm font-mono min-h-[80px] resize-none"
+                    />
+                  )}
 
                   <button
                     onClick={joinWithCode}
@@ -278,28 +376,53 @@ export default function Games({ onBack }) {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-bold text-blue-600">2</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-lg font-bold text-blue-600">2</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">Send this back</div>
+                        <div className="text-sm text-gray-500">Share QR or send link to host</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-gray-800">Send this back</div>
-                      <div className="text-sm text-gray-500">Copy and send to the host</div>
-                    </div>
+                    <button
+                      onClick={() => setShowQR(!showQR)}
+                      className="p-2 hover:bg-gray-100 rounded-lg"
+                      title={showQR ? "Show link" : "Show QR code"}
+                    >
+                      {showQR ? <Link className="w-5 h-5 text-gray-500" /> : <QrCode className="w-5 h-5 text-gray-500" />}
+                    </button>
                   </div>
 
-                  <div className="bg-gray-100 rounded-xl p-3 mb-3">
-                    <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
-                      {answerCode}
+                  {showQR ? (
+                    <div className="flex flex-col items-center mb-4">
+                      <div className="bg-white p-4 rounded-xl border-2 border-blue-100">
+                        <QRCodeSVG
+                          value={getJoinUrl(answerCode, true)}
+                          size={180}
+                          level="L"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                        <Smartphone className="w-4 h-4" />
+                        <span>Host scans this to connect</span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-gray-100 rounded-xl p-3 mb-3">
+                      <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
+                        {getJoinUrl(answerCode, true)}
+                      </div>
+                    </div>
+                  )}
 
                   <button
-                    onClick={() => copyCode(answerCode)}
+                    onClick={() => copyCode(getJoinUrl(answerCode, true))}
                     className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied ? 'Copied!' : 'Copy Response'}
+                    {copied ? 'Copied!' : 'Copy Link'}
                   </button>
 
                   <div className="mt-4 text-center text-sm text-gray-500">
@@ -336,7 +459,7 @@ export default function Games({ onBack }) {
                       </div>
                       <div>
                         <div className="font-medium text-gray-800">One person starts</div>
-                        <div className="text-sm text-gray-500">Tap "Start a Game" to get a connection code</div>
+                        <div className="text-sm text-gray-500">Tap "Start a Game" to get a QR code</div>
                       </div>
                     </div>
 
@@ -345,8 +468,8 @@ export default function Games({ onBack }) {
                         <span className="text-sm font-bold text-purple-600">2</span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">Send the code</div>
-                        <div className="text-sm text-gray-500">Text, email, or read it out loud to the other player</div>
+                        <div className="font-medium text-gray-800">Share it</div>
+                        <div className="text-sm text-gray-500">Same room? Scan QR. Far away? Send the link!</div>
                       </div>
                     </div>
 
@@ -356,7 +479,7 @@ export default function Games({ onBack }) {
                       </div>
                       <div>
                         <div className="font-medium text-gray-800">Other person joins</div>
-                        <div className="text-sm text-gray-500">They tap "Join a Game" and paste your code</div>
+                        <div className="text-sm text-gray-500">Scan/click opens the game ready to join</div>
                       </div>
                     </div>
 
@@ -365,8 +488,8 @@ export default function Games({ onBack }) {
                         <span className="text-sm font-bold text-blue-600">4</span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">Send response back</div>
-                        <div className="text-sm text-gray-500">They'll get a response code to send back to you</div>
+                        <div className="font-medium text-gray-800">Send response QR/link</div>
+                        <div className="text-sm text-gray-500">They share their QR or link back to you</div>
                       </div>
                     </div>
 
@@ -376,7 +499,7 @@ export default function Games({ onBack }) {
                       </div>
                       <div>
                         <div className="font-medium text-gray-800">Connected!</div>
-                        <div className="text-sm text-gray-500">Paste their response and you're ready to play!</div>
+                        <div className="text-sm text-gray-500">Scan/paste their response and play!</div>
                       </div>
                     </div>
                   </div>
