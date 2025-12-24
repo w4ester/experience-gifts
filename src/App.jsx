@@ -696,7 +696,7 @@ export default function ExperienceGifts() {
           {/* Added Coupons Summary */}
           {coupons.length > 0 && (
             <div className="bg-white mx-4 mt-4 p-4 rounded-2xl shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-medium text-gray-700">{coupons.length} coupon{coupons.length !== 1 ? 's' : ''} added</div>
                 <div className="flex -space-x-2">
                   {[...new Set(coupons.map(c => c.gifterId))].map(gid => {
@@ -710,29 +710,38 @@ export default function ExperienceGifts() {
                   })}
                 </div>
               </div>
-              {/* Quick list of added coupons */}
-              <div className="mt-3 space-y-2">
-                {coupons.slice(-3).map(coupon => {
+              {/* Full list of added coupons - scrollable */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {coupons.map(coupon => {
                   const gifter = gifters.find(g => g.id === coupon.gifterId);
                   return (
-                    <div key={coupon.id} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-4 h-4 ${gifter?.color || 'bg-gray-300'} rounded-full`} />
-                        <span className="text-gray-600">{coupon.title}</span>
+                    <div key={coupon.id} className="flex items-center justify-between text-sm py-1">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`w-5 h-5 ${gifter?.color || 'bg-gray-300'} rounded-full flex-shrink-0`} />
+                        <span className="text-gray-600 truncate">{coupon.title}</span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => removeCoupon(coupon.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   );
                 })}
-                {coupons.length > 3 && (
-                  <div className="text-xs text-gray-400">...and {coupons.length - 3} more</div>
-                )}
               </div>
+              {coupons.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Remove all ${coupons.length} coupons?`)) {
+                      setCoupons([]);
+                    }
+                  }}
+                  className="w-full mt-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
             </div>
           )}
 
