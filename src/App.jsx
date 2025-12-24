@@ -68,6 +68,9 @@ export default function ExperienceGifts() {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [scheduleModalCoupon, setScheduleModalCoupon] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [suggestionType, setSuggestionType] = useState('suggestion');
+  const [suggestionText, setSuggestionText] = useState('');
 
   // Cloud sync state
   const [bookletId, setBookletId] = useState(null);
@@ -1035,15 +1038,101 @@ export default function ExperienceGifts() {
             </div>
 
             {/* Suggestion Box */}
-            <a
-              href={`mailto:howdy@edinfinite.com?subject=${encodeURIComponent(`Suggestion for ${booklet.title || 'Experience Gifts'}`)}&body=${encodeURIComponent(`Hi!\n\nI have a suggestion for the Experience Gifts app:\n\n[Your suggestion here]\n\n---\nSent from ${booklet.title || 'Experience Gifts'}`)}`}
+            <button
+              onClick={() => setShowSuggestionModal(true)}
               className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors min-h-[44px]"
             >
               <MessageSquarePlus className="w-5 h-5" />
               <span className="font-medium">Have a suggestion? Let us know!</span>
-            </a>
+            </button>
           </div>
         </div>
+
+        {/* Suggestion Modal */}
+        {showSuggestionModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
+                <h3 className="text-lg font-bold text-gray-800">Send Feedback</h3>
+                <button
+                  onClick={() => {
+                    setShowSuggestionModal(false);
+                    setSuggestionType('suggestion');
+                    setSuggestionText('');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">What type of feedback?</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'suggestion', label: 'Suggestion' },
+                      { value: 'recommendation', label: 'Recommendation' },
+                      { value: 'update', label: 'Update Request' },
+                      { value: 'edit', label: 'Edit/Fix' },
+                    ].map((type) => (
+                      <button
+                        key={type.value}
+                        onClick={() => setSuggestionType(type.value)}
+                        className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all min-h-[44px] ${
+                          suggestionType === type.value
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Your message</label>
+                  <textarea
+                    value={suggestionText}
+                    onChange={(e) => setSuggestionText(e.target.value)}
+                    placeholder="Tell us what you're thinking..."
+                    rows={4}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-rose-400 focus:outline-none text-base resize-none"
+                  />
+                </div>
+
+                {/* Send Button */}
+                <a
+                  href={`mailto:howdy@edinfinite.com?subject=${encodeURIComponent(
+                    `${suggestionType.charAt(0).toUpperCase() + suggestionType.slice(1)} for ${booklet.title || 'Experience Gifts'}`
+                  )}&body=${encodeURIComponent(
+                    `Hi!\n\nType: ${suggestionType.charAt(0).toUpperCase() + suggestionType.slice(1)}\n\n${suggestionText || '[Your message here]'}\n\n---\nSent from ${booklet.title || 'Experience Gifts'}`
+                  )}`}
+                  onClick={() => {
+                    setShowSuggestionModal(false);
+                    setSuggestionType('suggestion');
+                    setSuggestionText('');
+                  }}
+                  className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px] ${
+                    suggestionText.trim()
+                      ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                  Send Feedback
+                </a>
+
+                <p className="text-xs text-gray-400 text-center">
+                  Opens your email app with the message pre-filled
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Share Modal */}
         {showShareModal && (
