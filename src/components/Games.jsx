@@ -150,7 +150,8 @@ export default function Games({ onBack }) {
 
       // Connection will complete via WebRTC
     } catch (e) {
-      setError('Failed to join game. Please try again.');
+      console.error('Join game error:', e);
+      setError(`Failed to join: ${e.message || 'Unknown error'}`);
       setStep('choose');
     }
   };
