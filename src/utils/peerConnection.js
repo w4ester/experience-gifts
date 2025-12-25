@@ -3,10 +3,21 @@
  * Enables direct device-to-device communication with no middleman
  */
 
-// STUN servers help with NAT traversal (these are public, no data stored)
+// ICE servers for NAT traversal
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  // Free TURN server from Open Relay Project
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
 
 export class PeerConnection {
