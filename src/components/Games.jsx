@@ -105,7 +105,8 @@ export default function Games({ onBack }) {
       }, 3000);
 
     } catch (e) {
-      setError('Failed to start game. Please try again.');
+      console.error('Start game error:', e);
+      setError(`Failed to start game: ${e.message || 'Unknown error'}`);
       setStep('choose');
     }
   };
