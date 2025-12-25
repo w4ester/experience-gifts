@@ -1,89 +1,31 @@
-// Games v2 - QR codes + URL sharing
+// Games - Simple room codes via signaling server
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X, QrCode, Link, Smartphone, Share2, Mail, MessageSquare } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import LZString from 'lz-string';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users } from 'lucide-react';
 import { PeerConnection } from '../utils/peerConnection';
 
-// Compress/decompress connection codes for shorter URLs
-const compressCode = (code) => {
-  try {
-    return LZString.compressToEncodedURIComponent(code);
-  } catch {
-    return null;
-  }
-};
+// Signaling server URL - update after deploying to Fly.io
+const SIGNAL_SERVER = 'https://experience-gifts-signal.fly.dev';
 
-const decompressCode = (compressed) => {
-  try {
-    return LZString.decompressFromEncodedURIComponent(compressed);
-  } catch {
-    return null;
-  }
-};
-
-// Generate shareable URL with compressed code
-const getJoinUrl = (code, isAnswer = false) => {
-  const compressed = compressCode(code);
-  const param = isAnswer ? 'answer' : 'join';
-  return `${window.location.origin}${window.location.pathname}?game=${param}=${compressed}`;
-};
-
-// Get code from URL if present
-const getCodeFromUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  const joinCode = params.get('game');
-  if (joinCode) {
-    if (joinCode.startsWith('join=')) {
-      return { type: 'offer', code: decompressCode(joinCode.replace('join=', '')) };
-    }
-    if (joinCode.startsWith('answer=')) {
-      return { type: 'answer', code: decompressCode(joinCode.replace('answer=', '')) };
-    }
-  }
-  return null;
-};
-
-// Word list for Wordle (5-letter words)
-const WORDS = ['GIFTS', 'HAPPY', 'JOLLY', 'MERRY', 'PEACE', 'CHEER', 'GRACE', 'HEART', 'LOVED', 'SWEET', 'FAITH', 'BLESS', 'LIGHT', 'SHINE', 'BRIGHT', 'DREAM', 'HOPES', 'JOYFUL', 'SMILE', 'LAUGH'];
+// Word list for Wordle
+const WORDS = ['GIFTS', 'HAPPY', 'JOLLY', 'MERRY', 'PEACE', 'CHEER', 'GRACE', 'HEART', 'LOVED', 'SWEET', 'FAITH', 'BLESS', 'LIGHT', 'SHINE', 'DREAM', 'HOPES', 'SMILE', 'LAUGH'];
 
 export default function Games({ onBack }) {
-  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // disconnected, connecting, connected
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [isHost, setIsHost] = useState(false);
-  const [offerCode, setOfferCode] = useState('');
-  const [answerCode, setAnswerCode] = useState('');
+  const [roomCode, setRoomCode] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [step, setStep] = useState('choose'); // choose, host-waiting, guest-joining, connected
+  const [error, setError] = useState('');
   const [selectedGame, setSelectedGame] = useState(null);
   const [gameState, setGameState] = useState(null);
-  const [playerRole, setPlayerRole] = useState(null); // 'X' or 'O' for tic-tac-toe, 1 or 2 for others
+  const [playerRole, setPlayerRole] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [showQR, setShowQR] = useState(true);
-  const [urlFromParams, setUrlFromParams] = useState(null);
 
   const peerRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
-  // Check URL for join code on mount
-  useEffect(() => {
-    const urlCode = getCodeFromUrl();
-    if (urlCode && urlCode.code) {
-      setUrlFromParams(urlCode);
-      if (urlCode.type === 'offer') {
-        // Someone shared an offer URL - go to guest joining
-        setIsHost(false);
-        setStep('guest-joining');
-        setInputCode(urlCode.code);
-      } else if (urlCode.type === 'answer') {
-        // Someone shared an answer URL - host needs to accept
-        setInputCode(urlCode.code);
-      }
-      // Clear URL params
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-  }, []);
-
-  // Handle incoming messages
+  // Handle incoming messages from peer
   const handleMessage = (data) => {
     if (data.type === 'game-state') {
       setGameState(data.state);
@@ -100,6 +42,11 @@ export default function Games({ onBack }) {
     setConnectionStatus(status);
     if (status === 'connected') {
       setStep('connected');
+      // Stop polling
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
       // Host assigns roles
       if (isHost) {
         const role = Math.random() > 0.5 ? 'X' : 'O';
@@ -109,88 +56,104 @@ export default function Games({ onBack }) {
     }
   };
 
-  // Create connection as host
+  // HOST: Create room and start waiting
   const startAsHost = async () => {
     setIsHost(true);
     setStep('host-waiting');
     setConnectionStatus('connecting');
+    setError('');
 
-    peerRef.current = new PeerConnection(handleMessage, handleConnectionChange);
-    const code = await peerRef.current.createOffer();
-    setOfferCode(code);
+    try {
+      // Create WebRTC offer
+      peerRef.current = new PeerConnection(handleMessage, handleConnectionChange);
+      const offer = await peerRef.current.createOffer();
+
+      // Send offer to signaling server, get room code
+      const res = await fetch(`${SIGNAL_SERVER}/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sdp: offer })
+      });
+
+      if (!res.ok) throw new Error('Failed to create room');
+
+      const { code } = await res.json();
+      setRoomCode(code);
+
+      // Poll for guest's answer
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const answerRes = await fetch(`${SIGNAL_SERVER}/answer/${code}`);
+          if (answerRes.status === 200) {
+            const { answer } = await answerRes.json();
+            await peerRef.current.acceptAnswer(answer);
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          // 202 = still waiting, 404 = room expired
+          if (answerRes.status === 404) {
+            clearInterval(pollIntervalRef.current);
+            setError('Room expired. Please start again.');
+            setStep('choose');
+          }
+        } catch (e) {
+          // Network error, keep polling
+        }
+      }, 2000);
+
+    } catch (e) {
+      setError('Failed to start game. Please try again.');
+      setStep('choose');
+    }
   };
 
-  // Join as guest
-  const startAsGuest = () => {
+  // GUEST: Join with room code
+  const joinWithCode = async () => {
+    if (inputCode.length !== 4) {
+      setError('Please enter a 4-character code');
+      return;
+    }
+
     setIsHost(false);
     setStep('guest-joining');
-  };
-
-  // Extract actual SDP code from various input formats (URL, compressed, or raw)
-  const extractCode = (input) => {
-    // Remove all whitespace (newlines, spaces) that might come from copy/paste
-    const cleaned = input.replace(/\s+/g, '');
-
-    // Check if it's a URL with game param
-    if (cleaned.includes('?game=')) {
-      try {
-        const url = new URL(cleaned);
-        const gameParam = url.searchParams.get('game');
-        if (gameParam) {
-          if (gameParam.startsWith('join=')) {
-            return decompressCode(gameParam.replace('join=', ''));
-          }
-          if (gameParam.startsWith('answer=')) {
-            return decompressCode(gameParam.replace('answer=', ''));
-          }
-        }
-      } catch {}
-    }
-
-    // Check if it looks like compressed LZ-string (alphanumeric, not JSON or base64)
-    if (!cleaned.startsWith('{') && !cleaned.startsWith('ey')) {
-      const decompressed = decompressCode(cleaned);
-      if (decompressed && decompressed.startsWith('{')) {
-        return decompressed;
-      }
-    }
-
-    // Return as-is (raw SDP code)
-    return cleaned;
-  };
-
-  // Guest accepts host's offer
-  const joinWithCode = async () => {
-    if (!inputCode.trim()) return;
-
     setConnectionStatus('connecting');
-    peerRef.current = new PeerConnection(handleMessage, handleConnectionChange);
+    setError('');
 
     try {
-      const code = extractCode(inputCode);
-      const answer = await peerRef.current.acceptOffer(code);
-      setAnswerCode(answer);
+      // Get host's offer from signaling server
+      const offerRes = await fetch(`${SIGNAL_SERVER}/join/${inputCode.toUpperCase()}`);
+
+      if (offerRes.status === 404) {
+        setError('Room not found. Check the code and try again.');
+        setStep('choose');
+        return;
+      }
+
+      if (!offerRes.ok) throw new Error('Failed to join room');
+
+      const { offer } = await offerRes.json();
+
+      // Create WebRTC answer
+      peerRef.current = new PeerConnection(handleMessage, handleConnectionChange);
+      const answer = await peerRef.current.acceptOffer(offer);
+
+      // Send answer to signaling server
+      await fetch(`${SIGNAL_SERVER}/answer/${inputCode.toUpperCase()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sdp: answer })
+      });
+
+      // Connection will complete via WebRTC
     } catch (e) {
-      alert('Invalid code. Please try again.');
-      setConnectionStatus('disconnected');
+      setError('Failed to join game. Please try again.');
+      setStep('choose');
     }
   };
 
-  // Host accepts guest's answer
-  const acceptAnswer = async () => {
-    if (!inputCode.trim()) return;
-
-    try {
-      const code = extractCode(inputCode);
-      await peerRef.current.acceptAnswer(code);
-    } catch (e) {
-      alert('Invalid answer code. Please try again.');
-    }
-  };
-
-  // Copy to clipboard
-  const copyCode = (code) => {
-    navigator.clipboard.writeText(code);
+  // Copy room code to clipboard
+  const copyCode = () => {
+    navigator.clipboard.writeText(roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -238,10 +201,13 @@ export default function Games({ onBack }) {
   useEffect(() => {
     return () => {
       peerRef.current?.close();
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
     };
   }, []);
 
-  // Render connection setup
+  // Connection setup screens
   if (step !== 'connected') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
@@ -259,6 +225,14 @@ export default function Games({ onBack }) {
             </button>
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Choose: Start or Join */}
           {step === 'choose' && (
             <div className="space-y-4">
               <div className="text-center mb-8">
@@ -266,7 +240,7 @@ export default function Games({ onBack }) {
                   <Gamepad2 className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-800">Real-Time Family Games</h3>
-                <p className="text-gray-500 text-sm mt-1">Connect directly — your game data stays private</p>
+                <p className="text-gray-500 text-sm mt-1">Connect with a simple 4-letter code</p>
               </div>
 
               <button
@@ -274,234 +248,90 @@ export default function Games({ onBack }) {
                 className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-2xl p-5 text-left hover:shadow-lg transition-all"
               >
                 <div className="font-semibold text-lg">Start a Game</div>
-                <div className="text-purple-100 text-sm">Create a code to share with family</div>
+                <div className="text-purple-100 text-sm">Get a code to share with family</div>
               </button>
 
-              <button
-                onClick={startAsGuest}
-                className="w-full bg-white border-2 border-gray-200 rounded-2xl p-5 text-left hover:border-purple-300 transition-all"
-              >
-                <div className="font-semibold text-gray-800">Join a Game</div>
-                <div className="text-gray-500 text-sm">Enter a code from family member</div>
-              </button>
-            </div>
-          )}
-
-          {step === 'host-waiting' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-bold text-purple-600">1</span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-800">Share with family</div>
-                      <div className="text-sm text-gray-500">Scan QR or send link</div>
-                    </div>
-                  </div>
-                  {/* Toggle QR/Link view */}
-                  <button
-                    onClick={() => setShowQR(!showQR)}
-                    className="p-2 hover:bg-gray-100 rounded-lg"
-                    title={showQR ? "Show link" : "Show QR code"}
-                  >
-                    {showQR ? <Link className="w-5 h-5 text-gray-500" /> : <QrCode className="w-5 h-5 text-gray-500" />}
-                  </button>
-                </div>
-
-                {offerCode ? (
-                  showQR ? (
-                    <div className="flex flex-col items-center mb-4">
-                      <div className="bg-white p-4 rounded-xl border-2 border-purple-100">
-                        <QRCodeSVG
-                          value={getJoinUrl(offerCode)}
-                          size={180}
-                          level="L"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-                        <Smartphone className="w-4 h-4" />
-                        <span>Scan with phone camera</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-100 rounded-xl p-3 mb-3">
-                      <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
-                        {getJoinUrl(offerCode)}
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center py-8 text-gray-400">Generating...</div>
-                )}
-
-                <button
-                  onClick={() => copyCode(getJoinUrl(offerCode))}
-                  disabled={!offerCode}
-                  className="w-full py-3 bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied!' : 'Copy Link'}
-                </button>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg font-bold text-purple-600">2</span>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-800">Paste their response</div>
-                    <div className="text-sm text-gray-500">They'll send back a response code</div>
-                  </div>
-                </div>
-
-                <textarea
-                  value={inputCode}
-                  onChange={(e) => setInputCode(e.target.value)}
-                  placeholder="Paste the response code here..."
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-sm font-mono min-h-[80px] resize-none"
-                />
-
-                <button
-                  onClick={acceptAnswer}
-                  disabled={!inputCode.trim()}
-                  className="w-full mt-3 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-medium disabled:opacity-50 min-h-[44px]"
-                >
-                  Connect
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === 'guest-joining' && (
-            <div className="space-y-6">
-              {!answerCode ? (
-                <div className="bg-white rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-bold text-blue-600">1</span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-800">
-                        {urlFromParams?.type === 'offer' ? 'Ready to join!' : 'Enter their code'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {urlFromParams?.type === 'offer' ? 'Tap Join to connect' : 'Paste the link or code they sent'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {!urlFromParams?.type && (
-                    <textarea
-                      value={inputCode}
-                      onChange={(e) => setInputCode(e.target.value)}
-                      placeholder="Paste link or code here..."
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm font-mono min-h-[80px] resize-none"
-                    />
-                  )}
-
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="font-semibold text-gray-800 mb-3">Join a Game</div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputCode}
+                    onChange={(e) => setInputCode(e.target.value.toUpperCase().slice(0, 4))}
+                    placeholder="CODE"
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-2xl font-bold tracking-[0.5em] uppercase"
+                    maxLength={4}
+                  />
                   <button
                     onClick={joinWithCode}
-                    disabled={!inputCode.trim()}
-                    className="w-full mt-3 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-medium disabled:opacity-50 min-h-[44px]"
+                    disabled={inputCode.length !== 4}
+                    className="px-6 py-3 bg-purple-500 text-white rounded-xl font-medium disabled:opacity-50 min-h-[44px]"
                   >
-                    Join Game
+                    Join
                   </button>
                 </div>
-              ) : (
-                <div className="bg-white rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-lg font-bold text-blue-600">2</span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-800">Send this back</div>
-                        <div className="text-sm text-gray-500">Share QR or send link to host</div>
-                      </div>
+              </div>
+            </div>
+          )}
+
+          {/* Host: Waiting for guest */}
+          {step === 'host-waiting' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+                <div className="mb-4">
+                  <Users className="w-12 h-12 text-purple-500 mx-auto mb-2" />
+                  <div className="text-gray-500 text-sm">Share this code with family:</div>
+                </div>
+
+                {roomCode ? (
+                  <>
+                    <div className="text-5xl font-bold text-purple-600 tracking-[0.3em] mb-6">
+                      {roomCode}
                     </div>
+
                     <button
-                      onClick={() => setShowQR(!showQR)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                      title={showQR ? "Show link" : "Show QR code"}
+                      onClick={copyCode}
+                      className="w-full py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
                     >
-                      {showQR ? <Link className="w-5 h-5 text-gray-500" /> : <QrCode className="w-5 h-5 text-gray-500" />}
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? 'Copied!' : 'Copy Code'}
                     </button>
-                  </div>
 
-                  {showQR ? (
-                    <div className="flex flex-col items-center mb-4">
-                      <div className="bg-white p-4 rounded-xl border-2 border-blue-100">
-                        <QRCodeSVG
-                          value={getJoinUrl(answerCode, true)}
-                          size={180}
-                          level="L"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-                        <Smartphone className="w-4 h-4" />
-                        <span>Host scans this to connect</span>
+                    <div className="mt-6 text-center text-sm text-gray-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                        Waiting for them to join...
                       </div>
                     </div>
-                  ) : (
-                    <div className="bg-gray-100 rounded-xl p-3 mb-3">
-                      <div className="text-xs text-gray-600 break-all font-mono max-h-20 overflow-y-auto">
-                        {getJoinUrl(answerCode, true)}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => copyCode(getJoinUrl(answerCode, true))}
-                    className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </button>
-
-                  {/* Share options for sending answer back to host */}
-                  <div className="flex gap-2 mt-3">
-                    {navigator.share && (
-                      <button
-                        onClick={() => {
-                          navigator.share({
-                            title: 'Game Connection',
-                            text: 'Paste this link to connect:',
-                            url: getJoinUrl(answerCode, true)
-                          }).catch(() => {});
-                        }}
-                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
-                      >
-                        <Share2 className="w-4 h-4" />
-                        Share
-                      </button>
-                    )}
-                    <a
-                      href={`sms:?&body=${encodeURIComponent(getJoinUrl(answerCode, true))}`}
-                      className="flex-1 py-3 bg-green-100 hover:bg-green-200 text-green-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      Text
-                    </a>
-                    <a
-                      href={`mailto:?subject=${encodeURIComponent('Game Connection Link')}&body=${encodeURIComponent('Paste this link to connect:\n\n' + getJoinUrl(answerCode, true))}`}
-                      className="flex-1 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
-                    >
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </a>
+                  </>
+                ) : (
+                  <div className="py-8">
+                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin mx-auto" />
+                    <div className="text-gray-500 text-sm mt-4">Creating game...</div>
                   </div>
+                )}
+              </div>
 
-                  <div className="mt-4 text-center text-sm text-gray-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                      Waiting for connection...
-                    </div>
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => {
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                  peerRef.current?.close();
+                  setStep('choose');
+                  setRoomCode('');
+                }}
+                className="w-full py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Guest: Connecting */}
+          {step === 'guest-joining' && (
+            <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+              <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin mx-auto mb-4" />
+              <div className="text-lg font-semibold text-gray-800 mb-2">Connecting...</div>
+              <div className="text-gray-500 text-sm">Joining game {inputCode}</div>
             </div>
           )}
 
@@ -518,7 +348,7 @@ export default function Games({ onBack }) {
                 <div className="p-5 space-y-6">
                   <div className="text-center mb-4">
                     <div className="text-4xl mb-2">🎮</div>
-                    <p className="text-gray-600 text-sm">Play games together in real-time — your data stays private!</p>
+                    <p className="text-gray-600 text-sm">Play games together in real-time!</p>
                   </div>
 
                   <div className="space-y-4">
@@ -527,8 +357,8 @@ export default function Games({ onBack }) {
                         <span className="text-sm font-bold text-purple-600">1</span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">One person starts</div>
-                        <div className="text-sm text-gray-500">Tap "Start a Game" to get a QR code</div>
+                        <div className="font-medium text-gray-800">Start a game</div>
+                        <div className="text-sm text-gray-500">Get a 4-letter code like "A3F9"</div>
                       </div>
                     </div>
 
@@ -537,8 +367,8 @@ export default function Games({ onBack }) {
                         <span className="text-sm font-bold text-purple-600">2</span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">Share it</div>
-                        <div className="text-sm text-gray-500">Same room? Scan QR. Far away? Send the link!</div>
+                        <div className="font-medium text-gray-800">Share the code</div>
+                        <div className="text-sm text-gray-500">Tell them the code - text, call, or in person!</div>
                       </div>
                     </div>
 
@@ -547,36 +377,16 @@ export default function Games({ onBack }) {
                         <span className="text-sm font-bold text-blue-600">3</span>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">Other person joins</div>
-                        <div className="text-sm text-gray-500">Scan/click opens the game ready to join</div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-blue-600">4</span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-800">Send response QR/link</div>
-                        <div className="text-sm text-gray-500">They share their QR or link back to you</div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-green-600">5</span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-800">Connected!</div>
-                        <div className="text-sm text-gray-500">Scan/paste their response and play!</div>
+                        <div className="font-medium text-gray-800">They join</div>
+                        <div className="text-sm text-gray-500">They enter the code and you're connected!</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4">
-                    <div className="text-sm font-medium text-gray-700 mb-1">Why codes?</div>
+                    <div className="text-sm font-medium text-gray-700 mb-1">Privacy First</div>
                     <div className="text-xs text-gray-500">
-                      This connects you directly device-to-device. No server stores your game — it's completely private between you and your family!
+                      Game data goes directly between your devices. The code is just to help you find each other!
                     </div>
                   </div>
 
@@ -616,7 +426,7 @@ export default function Games({ onBack }) {
         </div>
 
         {!selectedGame ? (
-          // Game selection (host picks)
+          // Game selection
           <div className="space-y-4">
             <div className="text-center mb-6">
               <h3 className="text-lg font-bold text-gray-800">
@@ -749,12 +559,6 @@ export default function Games({ onBack }) {
                   </div>
                 </div>
 
-                <div className="bg-purple-50 rounded-xl p-4">
-                  <div className="text-sm text-purple-700">
-                    <strong>Privacy:</strong> All moves go directly between your devices. No server sees your game!
-                  </div>
-                </div>
-
                 <button
                   onClick={() => setShowHelp(false)}
                   className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-medium min-h-[44px]"
@@ -810,7 +614,7 @@ function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
         {!winner && (
           currentPlayer === playerRole
             ? " — Your turn!"
-            : " — Waiting for opponent..."
+            : " — Waiting..."
         )}
       </p>
 
@@ -872,7 +676,6 @@ function MatchingGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
     const newFlipped = newCards.filter(c => c.flipped && !c.matched);
 
     if (newFlipped.length === 2) {
-      // Check for match
       setTimeout(() => {
         const [first, second] = newFlipped;
         const isMatch = first.emoji === second.emoji;
@@ -914,7 +717,7 @@ function MatchingGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
       </div>
 
       <p className="text-gray-500 mb-4">
-        {currentPlayer === playerRole ? "Your turn!" : "Waiting for opponent..."}
+        {currentPlayer === playerRole ? "Your turn!" : "Waiting..."}
       </p>
 
       <div className="grid grid-cols-4 gap-2 max-w-[320px] mx-auto mb-6">
@@ -958,7 +761,7 @@ function MatchingGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
 
 // Wordle-style Game Component
 function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
-  const { word, guesses, currentGuess, currentPlayer, gameOver, won } = gameState;
+  const { word, guesses, currentPlayer, gameOver, won } = gameState;
   const [localGuess, setLocalGuess] = useState('');
 
   const isMyTurn = currentPlayer === playerRole;
@@ -984,7 +787,7 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
     setLocalGuess('');
   };
 
-  const getLetterColor = (letter, index, guess) => {
+  const getLetterColor = (letter, index) => {
     if (word[index] === letter) return 'bg-green-500 text-white';
     if (word.includes(letter)) return 'bg-yellow-500 text-white';
     return 'bg-gray-400 text-white';
@@ -994,8 +797,7 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
     <div className="text-center">
       <h3 className="text-xl font-bold text-gray-800 mb-2">Word Guess</h3>
       <p className="text-gray-500 mb-4">
-        Take turns guessing the 5-letter word!
-        {!gameOver && (isMyTurn ? " — Your turn!" : " — Waiting for opponent...")}
+        {!gameOver && (isMyTurn ? "Your turn!" : "Waiting...")}
       </p>
 
       <div className="space-y-2 mb-6">
@@ -1009,7 +811,7 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
                   <div
                     key={colIndex}
                     className={`w-12 h-12 flex items-center justify-center text-xl font-bold rounded-lg ${
-                      guess ? getLetterColor(letter, colIndex, guess) : 'bg-gray-200'
+                      guess ? getLetterColor(letter, colIndex) : 'bg-gray-200'
                     }`}
                   >
                     {letter}
@@ -1027,7 +829,7 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
             type="text"
             value={localGuess}
             onChange={(e) => setLocalGuess(e.target.value.slice(0, 5))}
-            placeholder="Enter guess"
+            placeholder="GUESS"
             className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center uppercase font-bold tracking-widest w-40 min-h-[44px]"
             maxLength={5}
           />
