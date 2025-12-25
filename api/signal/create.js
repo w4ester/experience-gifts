@@ -1,8 +1,17 @@
-// In-memory room storage (shared across function invocations in same instance)
-// Vercel edge functions are stateless, so we use a simple Map with cleanup
+// Redis for persistent storage (if configured), otherwise in-memory fallback
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const { Redis } = require('@upstash/redis');
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
+
+// Fallback in-memory storage
 const rooms = global.signalRooms || (global.signalRooms = new Map());
 
-// Generate friendly 4-char code (lowercase, no confusing chars like 0/o, 1/l)
+// Generate friendly 4-char code (lowercase, no confusing chars)
 function generateCode() {
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
   let code = '';
@@ -10,16 +19,6 @@ function generateCode() {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
-}
-
-// Clean up rooms older than 15 minutes
-function cleanupOldRooms() {
-  const cutoff = Date.now() - 15 * 60 * 1000;
-  for (const [code, room] of rooms.entries()) {
-    if (room.created < cutoff) {
-      rooms.delete(code);
-    }
-  }
 }
 
 export default async function handler(req, res) {
@@ -36,8 +35,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    cleanupOldRooms();
-
     const { sdp } = req.body;
     if (!sdp) {
       return res.status(400).json({ error: 'SDP required' });
@@ -45,17 +42,35 @@ export default async function handler(req, res) {
 
     // Generate unique code
     let code = generateCode();
-    let attempts = 0;
-    while (rooms.has(code) && attempts < 10) {
-      code = generateCode();
-      attempts++;
-    }
 
-    rooms.set(code, {
-      offer: sdp,
-      answer: null,
-      created: Date.now()
-    });
+    if (redis) {
+      // Use Redis - check for uniqueness and store with 15 min expiry
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = await redis.get(`signal:${code}`);
+        if (!existing) break;
+        code = generateCode();
+        attempts++;
+      }
+
+      await redis.set(`signal:${code}`, JSON.stringify({
+        offer: sdp,
+        answer: null,
+        created: Date.now()
+      }), { ex: 900 }); // 15 minutes
+    } else {
+      // Fallback to in-memory
+      let attempts = 0;
+      while (rooms.has(code) && attempts < 10) {
+        code = generateCode();
+        attempts++;
+      }
+      rooms.set(code, {
+        offer: sdp,
+        answer: null,
+        created: Date.now()
+      });
+    }
 
     return res.status(200).json({ code });
   } catch (error) {
