@@ -1,11 +1,52 @@
 export const config = { runtime: 'edge' };
 
-const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://experience-gifts.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+function getCorsHeaders(request) {
+  const origin = request.headers.get('origin');
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
+
+// Rate limiting: 60 requests per minute per IP (polling needs more headroom)
+async function checkRateLimit(ip, redisUrl, redisToken) {
+  const key = `ratelimit:signal:${ip}`;
+  const res = await fetch(redisUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(['GET', key]),
+  });
+  const data = await res.json();
+  const count = parseInt(data.result) || 0;
+
+  if (count >= 60) {
+    return false;
+  }
+
+  await fetch(redisUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(['INCR', key]),
+  });
+  if (count === 0) {
+    await fetch(redisUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['EXPIRE', key, 60]),
+    });
+  }
+  return true;
+}
 
 async function redisCommand(command, url, token) {
   const res = await fetch(url, {
@@ -21,6 +62,8 @@ async function redisCommand(command, url, token) {
 }
 
 export default async function handler(request) {
+  const corsHeaders = getCorsHeaders(request);
+
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -34,13 +77,22 @@ export default async function handler(request) {
     });
   }
 
+  // Rate limit check
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+  const allowed = await checkRateLimit(ip, REDIS_URL, REDIS_TOKEN);
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: 'Too many requests. Try again in a minute.' }), {
+      status: 429, headers: corsHeaders,
+    });
+  }
+
   // Extract code from URL path
   const reqUrl = new URL(request.url);
   const pathParts = reqUrl.pathname.split('/');
   const roomCode = pathParts[pathParts.length - 1]?.toLowerCase()?.trim();
 
-  if (!roomCode) {
-    return new Response(JSON.stringify({ error: 'Room code required' }), {
+  if (!roomCode || roomCode.length !== 4) {
+    return new Response(JSON.stringify({ error: 'Invalid room code' }), {
       status: 400, headers: corsHeaders,
     });
   }
@@ -91,6 +143,13 @@ export default async function handler(request) {
       const { sdp } = await request.json();
       if (!sdp) {
         return new Response(JSON.stringify({ error: 'SDP required' }), {
+          status: 400, headers: corsHeaders,
+        });
+      }
+
+      // Validate SDP size (max 50KB)
+      if (sdp.length > 50000) {
+        return new Response(JSON.stringify({ error: 'SDP too large' }), {
           status: 400, headers: corsHeaders,
         });
       }
