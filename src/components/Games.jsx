@@ -939,32 +939,79 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
 
   const isMyTurn = currentPlayer === playerRole;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!isMyTurn || localGuess.length !== 5) return;
+  // QWERTY keyboard layout
+  const keyboardRows = [
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+    ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
+  ];
 
-    const guess = localGuess.toUpperCase();
-    const newGuesses = [...guesses, guess];
-    const isWon = guess === word;
-    const isOver = isWon || newGuesses.length >= 6;
-
-    onMove({
-      ...gameState,
-      guesses: newGuesses,
-      currentGuess: '',
-      currentPlayer: currentPlayer === 1 ? 2 : 1,
-      gameOver: isOver,
-      won: isWon
+  // Get the best color status for each letter based on all guesses
+  const getKeyboardLetterStatus = () => {
+    const status = {};
+    guesses.forEach(guess => {
+      guess.split('').forEach((letter, index) => {
+        const currentStatus = status[letter];
+        if (word[index] === letter) {
+          status[letter] = 'correct'; // Green - highest priority
+        } else if (word.includes(letter) && currentStatus !== 'correct') {
+          status[letter] = 'present'; // Yellow
+        } else if (!currentStatus) {
+          status[letter] = 'absent'; // Gray
+        }
+      });
     });
+    return status;
+  };
 
-    setLocalGuess('');
+  const letterStatus = getKeyboardLetterStatus();
+
+  const handleKeyPress = (key) => {
+    if (!isMyTurn || gameOver) return;
+
+    if (key === 'ENTER') {
+      if (localGuess.length === 5) {
+        const guess = localGuess.toUpperCase();
+        const newGuesses = [...guesses, guess];
+        const isWon = guess === word;
+        const isOver = isWon || newGuesses.length >= 6;
+
+        onMove({
+          ...gameState,
+          guesses: newGuesses,
+          currentGuess: '',
+          currentPlayer: currentPlayer === 1 ? 2 : 1,
+          gameOver: isOver,
+          won: isWon
+        });
+        setLocalGuess('');
+      }
+    } else if (key === '⌫') {
+      setLocalGuess(prev => prev.slice(0, -1));
+    } else if (localGuess.length < 5) {
+      setLocalGuess(prev => prev + key);
+    }
+  };
+
+  const getKeyColor = (key) => {
+    if (key === 'ENTER' || key === '⌫') {
+      return 'bg-gray-300 text-gray-800';
+    }
+    const status = letterStatus[key];
+    if (status === 'correct') return 'bg-green-500 text-white';
+    if (status === 'present') return 'bg-yellow-500 text-white';
+    if (status === 'absent') return 'bg-gray-500 text-white';
+    return 'bg-gray-200 text-gray-800';
   };
 
   const getLetterColor = (letter, index) => {
-    if (word[index] === letter) return 'bg-green-500 text-white';
-    if (word.includes(letter)) return 'bg-yellow-500 text-white';
-    return 'bg-gray-400 text-white';
+    if (word[index] === letter) return 'bg-green-500 text-white border-green-500';
+    if (word.includes(letter)) return 'bg-yellow-500 text-white border-yellow-500';
+    return 'bg-gray-500 text-white border-gray-500';
   };
+
+  // Get display for current row being typed
+  const currentRowIndex = guesses.length;
 
   return (
     <div className="text-center">
@@ -973,18 +1020,25 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
         {!gameOver && (isMyTurn ? "Your turn!" : "Waiting...")}
       </p>
 
-      <div className="space-y-2 mb-6">
+      {/* Letter grid */}
+      <div className="space-y-1 mb-4">
         {Array(6).fill(null).map((_, rowIndex) => {
           const guess = guesses[rowIndex];
+          const isCurrentRow = rowIndex === currentRowIndex && isMyTurn && !gameOver;
           return (
             <div key={rowIndex} className="flex justify-center gap-1">
               {Array(5).fill(null).map((_, colIndex) => {
-                const letter = guess?.[colIndex] || '';
+                const letter = guess?.[colIndex] || (isCurrentRow ? localGuess[colIndex] : '') || '';
+                const hasGuess = !!guess;
                 return (
                   <div
                     key={colIndex}
-                    className={`w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center text-xl font-bold rounded-lg ${
-                      guess ? getLetterColor(letter, colIndex) : 'bg-gray-200'
+                    className={`w-12 h-12 sm:w-11 sm:h-11 flex items-center justify-center text-xl font-bold rounded border-2 transition-all ${
+                      hasGuess
+                        ? getLetterColor(letter, colIndex)
+                        : letter
+                          ? 'bg-white border-gray-400'
+                          : 'bg-white border-gray-200'
                     }`}
                   >
                     {letter}
@@ -996,27 +1050,28 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
         })}
       </div>
 
-      {!gameOver && isMyTurn && (
-        <form onSubmit={handleSubmit} className="flex gap-3 justify-center px-4">
-          <input
-            type="text"
-            value={localGuess}
-            onChange={(e) => setLocalGuess(e.target.value.slice(0, 5))}
-            placeholder="GUESS"
-            className="px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center uppercase font-bold tracking-widest flex-1 max-w-[180px] min-h-[56px] text-lg"
-            maxLength={5}
-            autoCapitalize="characters"
-            autoCorrect="off"
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            disabled={localGuess.length !== 5}
-            className="px-6 py-4 bg-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 min-h-[56px] active:scale-95 transition-transform"
-          >
-            Guess
-          </button>
-        </form>
+      {/* On-screen keyboard */}
+      {!gameOver && (
+        <div className="space-y-1 px-1">
+          {keyboardRows.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex justify-center gap-1">
+              {row.map(key => (
+                <button
+                  key={key}
+                  onClick={() => handleKeyPress(key)}
+                  disabled={!isMyTurn}
+                  className={`${
+                    key === 'ENTER' || key === '⌫' ? 'px-2 sm:px-3 text-xs' : 'w-8 sm:w-9'
+                  } h-12 sm:h-11 rounded font-bold flex items-center justify-center transition-all active:scale-95 ${
+                    getKeyColor(key)
+                  } ${!isMyTurn ? 'opacity-50' : ''}`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
 
       {gameOver && (
