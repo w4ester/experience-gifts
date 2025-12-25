@@ -11,7 +11,6 @@ function generateCode() {
 }
 
 export default async function handler(request) {
-  // Handle CORS
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -49,9 +48,8 @@ export default async function handler(request) {
       });
     }
 
-    // Store in Upstash Redis with 15 min TTL
     const data = JSON.stringify({ offer: sdp, answer: null, created: Date.now() });
-    const redisRes = await fetch(REDIS_URL, {
+    await fetch(REDIS_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${REDIS_TOKEN}`,
@@ -59,14 +57,13 @@ export default async function handler(request) {
       },
       body: JSON.stringify(['SET', `signal:${code}`, data, 'EX', 900]),
     });
-    const redisResult = await redisRes.json();
 
-    return new Response(JSON.stringify({ code, debug: redisResult }), {
+    return new Response(JSON.stringify({ code }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Server error', msg: error.message }), {
+    return new Response(JSON.stringify({ error: 'Server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
