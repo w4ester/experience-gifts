@@ -1,12 +1,23 @@
-const { Redis } = require('@upstash/redis');
-
-// Redis for persistent storage (if configured), otherwise in-memory fallback
-let redis = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+// Direct Upstash REST API (no SDK needed)
+async function redisGet(key) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null;
+  }
+  const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
   });
+  const data = await res.json();
+  return data.result;
+}
+
+async function redisSet(key, value, exSeconds) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return false;
+  }
+  await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/${key}/${encodeURIComponent(value)}/ex/${exSeconds}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+  });
+  return true;
 }
 
 // Fallback in-memory storage
@@ -43,22 +54,23 @@ module.exports = async function handler(req, res) {
 
     // Generate unique code
     let code = generateCode();
+    const hasRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
 
-    if (redis) {
+    if (hasRedis) {
       // Use Redis - check for uniqueness and store with 15 min expiry
       let attempts = 0;
       while (attempts < 10) {
-        const existing = await redis.get(`signal:${code}`);
+        const existing = await redisGet(`signal:${code}`);
         if (!existing) break;
         code = generateCode();
         attempts++;
       }
 
-      await redis.set(`signal:${code}`, JSON.stringify({
+      await redisSet(`signal:${code}`, JSON.stringify({
         offer: sdp,
         answer: null,
         created: Date.now()
-      }), { ex: 900 }); // 15 minutes
+      }), 900);
     } else {
       // Fallback to in-memory
       let attempts = 0;

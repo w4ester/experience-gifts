@@ -1,21 +1,43 @@
-const { Redis } = require('@upstash/redis');
-
-// Redis for persistent storage (if configured), otherwise in-memory fallback
-let redis = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+// Direct Upstash REST API (no SDK needed)
+async function redisGet(key) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null;
+  }
+  const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
   });
+  const data = await res.json();
+  return data.result;
+}
+
+async function redisSet(key, value, exSeconds) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return false;
+  }
+  await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/${key}/${encodeURIComponent(value)}/ex/${exSeconds}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+  });
+  return true;
+}
+
+async function redisDel(key) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return false;
+  }
+  await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/del/${key}`, {
+    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+  });
+  return true;
 }
 
 // Fallback in-memory storage (shared with create.js)
 const rooms = global.signalRooms || (global.signalRooms = new Map());
+const hasRedis = () => process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
 
 // Helper to get room from Redis or memory
 async function getRoom(code) {
-  if (redis) {
-    const data = await redis.get(`signal:${code}`);
+  if (hasRedis()) {
+    const data = await redisGet(`signal:${code}`);
     if (!data) return null;
     return typeof data === 'string' ? JSON.parse(data) : data;
   }
@@ -24,8 +46,8 @@ async function getRoom(code) {
 
 // Helper to save room to Redis or memory
 async function saveRoom(code, room) {
-  if (redis) {
-    await redis.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
+  if (hasRedis()) {
+    await redisSet(`signal:${code}`, JSON.stringify(room), 900);
   } else {
     rooms.set(code, room);
   }
@@ -33,8 +55,8 @@ async function saveRoom(code, room) {
 
 // Helper to delete room
 async function deleteRoom(code) {
-  if (redis) {
-    await redis.del(`signal:${code}`);
+  if (hasRedis()) {
+    await redisDel(`signal:${code}`);
   } else {
     rooms.delete(code);
   }
