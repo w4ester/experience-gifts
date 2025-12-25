@@ -3,9 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users } from 'lucide-react';
 import { PeerConnection } from '../utils/peerConnection';
 
-// Signaling server URL - update after deploying to Fly.io
-const SIGNAL_SERVER = 'https://experience-gifts-signal.fly.dev';
-
 // Word list for Wordle
 const WORDS = ['GIFTS', 'HAPPY', 'JOLLY', 'MERRY', 'PEACE', 'CHEER', 'GRACE', 'HEART', 'LOVED', 'SWEET', 'FAITH', 'BLESS', 'LIGHT', 'SHINE', 'DREAM', 'HOPES', 'SMILE', 'LAUGH'];
 
@@ -69,7 +66,7 @@ export default function Games({ onBack }) {
       const offer = await peerRef.current.createOffer();
 
       // Send offer to signaling server, get room code
-      const res = await fetch(`${SIGNAL_SERVER}/create`, {
+      const res = await fetch(`/api/signal/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sdp: offer })
@@ -83,7 +80,7 @@ export default function Games({ onBack }) {
       // Poll for guest's answer
       pollIntervalRef.current = setInterval(async () => {
         try {
-          const answerRes = await fetch(`${SIGNAL_SERVER}/answer/${code}`);
+          const answerRes = await fetch(`/api/signal/${code}?answer`);
           if (answerRes.status === 200) {
             const { answer } = await answerRes.json();
             await peerRef.current.acceptAnswer(answer);
@@ -121,7 +118,7 @@ export default function Games({ onBack }) {
 
     try {
       // Get host's offer from signaling server
-      const offerRes = await fetch(`${SIGNAL_SERVER}/join/${inputCode.toUpperCase()}`);
+      const offerRes = await fetch(`/api/signal/${inputCode.toUpperCase()}`);
 
       if (offerRes.status === 404) {
         setError('Room not found. Check the code and try again.');
@@ -138,7 +135,7 @@ export default function Games({ onBack }) {
       const answer = await peerRef.current.acceptOffer(offer);
 
       // Send answer to signaling server
-      await fetch(`${SIGNAL_SERVER}/answer/${inputCode.toUpperCase()}`, {
+      await fetch(`/api/signal/${inputCode.toUpperCase()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sdp: answer })
