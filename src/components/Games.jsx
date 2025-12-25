@@ -148,7 +148,14 @@ export default function Games({ onBack }) {
         body: JSON.stringify({ sdp: answer })
       });
 
-      // Connection will complete via WebRTC
+      // Connection timeout - if not connected in 20 seconds, show error
+      setTimeout(() => {
+        if (step === 'guest-joining') {
+          peerRef.current?.close();
+          setError('Connection timed out. Both devices need to be online. Try again.');
+          setStep('choose');
+        }
+      }, 20000);
     } catch (e) {
       console.error('Join game error:', e);
       setError(`Failed to join: ${e.message || 'Unknown error'}`);
