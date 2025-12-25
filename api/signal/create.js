@@ -1,27 +1,4 @@
-// Direct Upstash REST API (no SDK needed)
-async function redisGet(key) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
-  const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/${key}`, {
-    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
-  });
-  const data = await res.json();
-  return data.result;
-}
-
-async function redisSet(key, value, exSeconds) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return false;
-  }
-  await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/${key}/${encodeURIComponent(value)}/ex/${exSeconds}`, {
-    headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
-  });
-  return true;
-}
-
-// Fallback in-memory storage
-const rooms = global.signalRooms || (global.signalRooms = new Map());
+export const config = { runtime: 'edge' };
 
 // Generate friendly 4-char code (lowercase, no confusing chars)
 function generateCode() {
@@ -33,61 +10,59 @@ function generateCode() {
   return code;
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+export default async function handler(request) {
+  // Handle CORS
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
   }
 
   try {
-    const { sdp } = req.body;
+    const { sdp } = await request.json();
     if (!sdp) {
-      return res.status(400).json({ error: 'SDP required' });
-    }
-
-    // Generate unique code
-    let code = generateCode();
-    const hasRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (hasRedis) {
-      // Use Redis - check for uniqueness and store with 15 min expiry
-      let attempts = 0;
-      while (attempts < 10) {
-        const existing = await redisGet(`signal:${code}`);
-        if (!existing) break;
-        code = generateCode();
-        attempts++;
-      }
-
-      await redisSet(`signal:${code}`, JSON.stringify({
-        offer: sdp,
-        answer: null,
-        created: Date.now()
-      }), 900);
-    } else {
-      // Fallback to in-memory
-      let attempts = 0;
-      while (rooms.has(code) && attempts < 10) {
-        code = generateCode();
-        attempts++;
-      }
-      rooms.set(code, {
-        offer: sdp,
-        answer: null,
-        created: Date.now()
+      return new Response(JSON.stringify({ error: 'SDP required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
-    return res.status(200).json({ code });
+    const code = generateCode();
+    const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+    const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    if (!REDIS_URL || !REDIS_TOKEN) {
+      return new Response(JSON.stringify({ error: 'Redis not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    // Store in Upstash Redis with 15 min TTL
+    const data = JSON.stringify({ offer: sdp, answer: null, created: Date.now() });
+    await fetch(`${REDIS_URL}/set/signal:${code}/${encodeURIComponent(data)}/ex/900`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    });
+
+    return new Response(JSON.stringify({ code }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
   } catch (error) {
-    console.error('Create room error:', error);
-    return res.status(500).json({ error: 'Server error' });
+    return new Response(JSON.stringify({ error: 'Server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
   }
 }
