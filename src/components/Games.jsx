@@ -77,7 +77,8 @@ export default function Games({ onBack }) {
       const { code } = await res.json();
       setRoomCode(code);
 
-      // Poll for guest's answer
+      // Poll for guest's answer (every 3 seconds, with retry tolerance)
+      let notFoundCount = 0;
       pollIntervalRef.current = setInterval(async () => {
         try {
           const answerRes = await fetch(`/api/signal/${code}?answer`);
@@ -86,17 +87,22 @@ export default function Games({ onBack }) {
             await peerRef.current.acceptAnswer(answer);
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
-          }
-          // 202 = still waiting, 404 = room expired
-          if (answerRes.status === 404) {
-            clearInterval(pollIntervalRef.current);
-            setError('Room expired. Please start again.');
-            setStep('choose');
+          } else if (answerRes.status === 404) {
+            // Give tolerance for serverless cold starts - only fail after 3 consecutive 404s
+            notFoundCount++;
+            if (notFoundCount >= 3) {
+              clearInterval(pollIntervalRef.current);
+              setError('Room expired. Please start again.');
+              setStep('choose');
+            }
+          } else {
+            // 202 or other - reset counter, room still exists
+            notFoundCount = 0;
           }
         } catch (e) {
           // Network error, keep polling
         }
-      }, 2000);
+      }, 3000);
 
     } catch (e) {
       setError('Failed to start game. Please try again.');

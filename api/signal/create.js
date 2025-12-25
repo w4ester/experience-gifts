@@ -12,9 +12,9 @@ function generateCode() {
   return code;
 }
 
-// Clean up rooms older than 5 minutes
+// Clean up rooms older than 15 minutes
 function cleanupOldRooms() {
-  const cutoff = Date.now() - 5 * 60 * 1000;
+  const cutoff = Date.now() - 15 * 60 * 1000;
   for (const [code, room] of rooms.entries()) {
     if (room.created < cutoff) {
       rooms.delete(code);
