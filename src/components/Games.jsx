@@ -1,3 +1,4 @@
+// Games v2 - QR codes + URL sharing
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X, QrCode, Link, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
