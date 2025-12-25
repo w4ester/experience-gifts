@@ -936,6 +936,8 @@ function MatchingGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
 function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
   const { word, guesses, currentPlayer, gameOver, won } = gameState;
   const [localGuess, setLocalGuess] = useState('');
+  const localGuessRef = useRef(localGuess);
+  localGuessRef.current = localGuess;
 
   const isMyTurn = currentPlayer === playerRole;
 
@@ -968,10 +970,11 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
 
   const handleKeyPress = (key) => {
     if (!isMyTurn || gameOver) return;
+    const currentGuess = localGuessRef.current;
 
     if (key === 'ENTER') {
-      if (localGuess.length === 5) {
-        const guess = localGuess.toUpperCase();
+      if (currentGuess.length === 5) {
+        const guess = currentGuess.toUpperCase();
         const newGuesses = [...guesses, guess];
         const isWon = guess === word;
         const isOver = isWon || newGuesses.length >= 6;
@@ -986,12 +989,33 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
         });
         setLocalGuess('');
       }
-    } else if (key === '⌫') {
+    } else if (key === '⌫' || key === 'BACKSPACE') {
       setLocalGuess(prev => prev.slice(0, -1));
-    } else if (localGuess.length < 5) {
+    } else if (currentGuess.length < 5 && /^[A-Z]$/.test(key)) {
       setLocalGuess(prev => prev + key);
     }
   };
+
+  // Handle physical keyboard input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isMyTurn || gameOver) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleKeyPress('ENTER');
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleKeyPress('BACKSPACE');
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        handleKeyPress(e.key.toUpperCase());
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMyTurn, gameOver]);
 
   const getKeyColor = (key) => {
     if (key === 'ENTER' || key === '⌫') {
