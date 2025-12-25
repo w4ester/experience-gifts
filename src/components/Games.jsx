@@ -514,7 +514,7 @@ export default function Games({ onBack }) {
             {selectedGame === 'matching' && (
               <MatchingGame
                 gameState={gameState}
-                playerRole={playerRole === 'X' ? 1 : 2}
+                playerRole={isHost ? 1 : 2}
                 onMove={sendGameState}
                 onNewGame={() => selectGame('matching')}
                 isHost={isHost}
@@ -523,7 +523,7 @@ export default function Games({ onBack }) {
             {selectedGame === 'wordle' && (
               <WordleGame
                 gameState={gameState}
-                playerRole={playerRole === 'X' ? 1 : 2}
+                playerRole={isHost ? 1 : 2}
                 onMove={sendGameState}
                 onNewGame={() => selectGame('wordle')}
                 isHost={isHost}
