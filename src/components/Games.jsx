@@ -128,12 +128,13 @@ export default function Games({ onBack }) {
 
   // Extract actual SDP code from various input formats (URL, compressed, or raw)
   const extractCode = (input) => {
-    const trimmed = input.trim();
+    // Remove all whitespace (newlines, spaces) that might come from copy/paste
+    const cleaned = input.replace(/\s+/g, '');
 
     // Check if it's a URL with game param
-    if (trimmed.includes('?game=')) {
+    if (cleaned.includes('?game=')) {
       try {
-        const url = new URL(trimmed);
+        const url = new URL(cleaned);
         const gameParam = url.searchParams.get('game');
         if (gameParam) {
           if (gameParam.startsWith('join=')) {
@@ -146,16 +147,16 @@ export default function Games({ onBack }) {
       } catch {}
     }
 
-    // Check if it looks like compressed LZ-string (no spaces, no newlines, starts with letters)
-    if (!trimmed.includes(' ') && !trimmed.includes('\n') && !trimmed.startsWith('{') && !trimmed.startsWith('ey')) {
-      const decompressed = decompressCode(trimmed);
+    // Check if it looks like compressed LZ-string (alphanumeric, not JSON or base64)
+    if (!cleaned.startsWith('{') && !cleaned.startsWith('ey')) {
+      const decompressed = decompressCode(cleaned);
       if (decompressed && decompressed.startsWith('{')) {
         return decompressed;
       }
     }
 
     // Return as-is (raw SDP code)
-    return trimmed;
+    return cleaned;
   };
 
   // Guest accepts host's offer
