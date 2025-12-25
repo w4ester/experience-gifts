@@ -7,24 +7,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-async function redisGet(key, url, token) {
-  const res = await fetch(`${url}/get/${key}`, {
-    headers: { Authorization: `Bearer ${token}` },
+async function redisCommand(command, url, token) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(command),
   });
   const data = await res.json();
   return data.result;
-}
-
-async function redisSet(key, value, ttl, url, token) {
-  await fetch(`${url}/set/${key}/${encodeURIComponent(value)}/ex/${ttl}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
-async function redisDel(key, url, token) {
-  await fetch(`${url}/del/${key}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
 }
 
 export default async function handler(request) {
@@ -42,8 +35,8 @@ export default async function handler(request) {
   }
 
   // Extract code from URL path
-  const url = new URL(request.url);
-  const pathParts = url.pathname.split('/');
+  const reqUrl = new URL(request.url);
+  const pathParts = reqUrl.pathname.split('/');
   const roomCode = pathParts[pathParts.length - 1]?.toLowerCase()?.trim();
 
   if (!roomCode) {
@@ -53,11 +46,11 @@ export default async function handler(request) {
   }
 
   try {
-    const roomData = await redisGet(`signal:${roomCode}`, REDIS_URL, REDIS_TOKEN);
+    const roomData = await redisCommand(['GET', `signal:${roomCode}`], REDIS_URL, REDIS_TOKEN);
     const room = roomData ? (typeof roomData === 'string' ? JSON.parse(roomData) : roomData) : null;
 
     // GET with ?answer - Host polling for answer
-    if (request.method === 'GET' && url.searchParams.has('answer')) {
+    if (request.method === 'GET' && reqUrl.searchParams.has('answer')) {
       if (!room) {
         return new Response(JSON.stringify({ error: 'Room not found or expired' }), {
           status: 404, headers: corsHeaders,
@@ -69,7 +62,7 @@ export default async function handler(request) {
         });
       }
       const answer = room.answer;
-      await redisDel(`signal:${roomCode}`, REDIS_URL, REDIS_TOKEN);
+      await redisCommand(['DEL', `signal:${roomCode}`], REDIS_URL, REDIS_TOKEN);
       return new Response(JSON.stringify({ answer }), {
         status: 200, headers: corsHeaders,
       });
@@ -103,7 +96,7 @@ export default async function handler(request) {
       }
 
       room.answer = sdp;
-      await redisSet(`signal:${roomCode}`, JSON.stringify(room), 900, REDIS_URL, REDIS_TOKEN);
+      await redisCommand(['SET', `signal:${roomCode}`, JSON.stringify(room), 'EX', 900], REDIS_URL, REDIS_TOKEN);
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: corsHeaders,
       });

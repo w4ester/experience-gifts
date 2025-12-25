@@ -49,10 +49,15 @@ export default async function handler(request) {
       });
     }
 
-    // Store in Upstash Redis with 15 min TTL
+    // Store in Upstash Redis with 15 min TTL using POST body format
     const data = JSON.stringify({ offer: sdp, answer: null, created: Date.now() });
-    await fetch(`${REDIS_URL}/set/signal:${code}/${encodeURIComponent(data)}/ex/900`, {
-      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    await fetch(REDIS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(['SET', `signal:${code}`, data, 'EX', 900]),
     });
 
     return new Response(JSON.stringify({ code }), {
