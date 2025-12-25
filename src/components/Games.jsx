@@ -188,8 +188,8 @@ export default function Games({ onBack }) {
   const getInitialState = (game) => {
     switch (game) {
       case 'tictactoe':
-        // Host always goes first, use their assigned role
-        return { board: Array(9).fill(null), currentPlayer: playerRole || 'X', winner: null };
+        // Host (player 1) always goes first
+        return { board: Array(9).fill(null), currentPlayer: 1, winner: null };
       case 'matching':
         const emojis = ['🎁', '🎄', '⭐', '🔔', '❄️', '🦌', '🎅', '🤶'];
         const cards = [...emojis, ...emojis]
@@ -614,7 +614,7 @@ export default function Games({ onBack }) {
             {selectedGame === 'tictactoe' && (
               <TicTacToe
                 gameState={gameState}
-                playerRole={playerRole}
+                playerRole={isHost ? 1 : 2}
                 onMove={sendGameState}
                 onNewGame={() => selectGame('tictactoe')}
                 isHost={isHost}
@@ -748,19 +748,21 @@ export default function Games({ onBack }) {
 // Tic-Tac-Toe Component
 function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
   const { board, currentPlayer, winner } = gameState;
+  // Player 1 is X, Player 2 is O
+  const mySymbol = playerRole === 1 ? 'X' : 'O';
 
   const handleClick = (index) => {
     if (board[index] || winner || currentPlayer !== playerRole) return;
 
     const newBoard = [...board];
-    newBoard[index] = currentPlayer;
+    newBoard[index] = mySymbol;
 
     const newWinner = checkWinner(newBoard);
     const isDraw = !newWinner && newBoard.every(cell => cell);
 
     onMove({
       board: newBoard,
-      currentPlayer: currentPlayer === 'X' ? 'O' : 'X',
+      currentPlayer: currentPlayer === 1 ? 2 : 1,
       winner: newWinner || (isDraw ? 'draw' : null)
     });
   };
@@ -781,7 +783,7 @@ function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
     <div className="text-center">
       <h3 className="text-xl font-bold text-gray-800 mb-2">Tic-Tac-Toe</h3>
       <p className="text-gray-500 mb-4">
-        You are <span className="font-bold text-purple-600">{playerRole}</span>
+        You are <span className="font-bold text-purple-600">{mySymbol}</span>
         {!winner && (
           currentPlayer === playerRole
             ? " — Your turn!"
@@ -795,12 +797,12 @@ function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
             key={i}
             onClick={() => handleClick(i)}
             disabled={cell || winner || currentPlayer !== playerRole}
-            className={`aspect-square rounded-2xl text-5xl font-bold flex items-center justify-center transition-all active:scale-95 ${
+            className={`aspect-square rounded-2xl text-5xl font-bold flex items-center justify-center transition-all active:scale-95 border-2 ${
               cell
-                ? 'bg-gray-100'
+                ? 'bg-gray-100 border-gray-200'
                 : currentPlayer === playerRole
-                ? 'bg-purple-100 active:bg-purple-200'
-                : 'bg-gray-50'
+                ? 'bg-purple-100 border-purple-300 active:bg-purple-200'
+                : 'bg-gray-200 border-gray-300'
             } ${cell === 'X' ? 'text-purple-600' : 'text-blue-600'}`}
           >
             {cell}
@@ -811,7 +813,7 @@ function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
       {winner && (
         <div className="mb-4">
           <div className={`text-xl font-bold ${winner === 'draw' ? 'text-gray-600' : 'text-green-600'}`}>
-            {winner === 'draw' ? "It's a draw!" : winner === playerRole ? 'You win!' : 'You lost!'}
+            {winner === 'draw' ? "It's a draw!" : winner === mySymbol ? 'You win!' : 'You lost!'}
           </div>
           {isHost && (
             <button
