@@ -1,15 +1,12 @@
-// Lazy Redis initialization for serverless ESM
+const { Redis } = require('@upstash/redis');
+
+// Redis for persistent storage (if configured), otherwise in-memory fallback
 let redis = null;
-async function getRedis() {
-  if (redis) return redis;
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    const { Redis } = await import('@upstash/redis');
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
-  return redis;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
 }
 
 // Fallback in-memory storage (shared with create.js)
@@ -17,9 +14,8 @@ const rooms = global.signalRooms || (global.signalRooms = new Map());
 
 // Helper to get room from Redis or memory
 async function getRoom(code) {
-  const redisClient = await getRedis();
-  if (redisClient) {
-    const data = await redisClient.get(`signal:${code}`);
+  if (redis) {
+    const data = await redis.get(`signal:${code}`);
     if (!data) return null;
     return typeof data === 'string' ? JSON.parse(data) : data;
   }
@@ -28,9 +24,8 @@ async function getRoom(code) {
 
 // Helper to save room to Redis or memory
 async function saveRoom(code, room) {
-  const redisClient = await getRedis();
-  if (redisClient) {
-    await redisClient.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
+  if (redis) {
+    await redis.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
   } else {
     rooms.set(code, room);
   }
@@ -38,15 +33,14 @@ async function saveRoom(code, room) {
 
 // Helper to delete room
 async function deleteRoom(code) {
-  const redisClient = await getRedis();
-  if (redisClient) {
-    await redisClient.del(`signal:${code}`);
+  if (redis) {
+    await redis.del(`signal:${code}`);
   } else {
     rooms.delete(code);
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -108,4 +102,4 @@ export default async function handler(req, res) {
     console.error('Signal API error:', error);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+};

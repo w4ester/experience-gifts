@@ -1,15 +1,12 @@
-// Lazy Redis initialization for serverless ESM
+const { Redis } = require('@upstash/redis');
+
+// Redis for persistent storage (if configured), otherwise in-memory fallback
 let redis = null;
-async function getRedis() {
-  if (redis) return redis;
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    const { Redis } = await import('@upstash/redis');
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
-  return redis;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
 }
 
 // Fallback in-memory storage
@@ -25,7 +22,7 @@ function generateCode() {
   return code;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -46,19 +43,18 @@ export default async function handler(req, res) {
 
     // Generate unique code
     let code = generateCode();
-    const redisClient = await getRedis();
 
-    if (redisClient) {
+    if (redis) {
       // Use Redis - check for uniqueness and store with 15 min expiry
       let attempts = 0;
       while (attempts < 10) {
-        const existing = await redisClient.get(`signal:${code}`);
+        const existing = await redis.get(`signal:${code}`);
         if (!existing) break;
         code = generateCode();
         attempts++;
       }
 
-      await redisClient.set(`signal:${code}`, JSON.stringify({
+      await redis.set(`signal:${code}`, JSON.stringify({
         offer: sdp,
         answer: null,
         created: Date.now()
@@ -82,4 +78,4 @@ export default async function handler(req, res) {
     console.error('Create room error:', error);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+};
