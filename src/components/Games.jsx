@@ -395,31 +395,48 @@ export default function Games({ onBack }) {
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
-                <div className="p-5 space-y-5">
-                  <div className="bg-purple-50 rounded-xl p-4">
-                    <div className="font-bold text-purple-800 mb-2">Person 1 (Host)</div>
-                    <div className="text-sm text-purple-700 space-y-1">
-                      <p>1. Tap <strong>"Start New Game"</strong></p>
-                      <p>2. You'll get a code like <strong>v6gb</strong></p>
-                      <p>3. Share the code with your partner</p>
+                <div className="p-5 space-y-6">
+                  <div className="text-center mb-4">
+                    <div className="text-4xl mb-2">🎮</div>
+                    <p className="text-gray-600 text-sm">Play games together in real-time!</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-purple-600">1</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">Start a game</div>
+                        <div className="text-sm text-gray-500">Get a 4-letter code like "A3F9"</div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-purple-600">2</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">Share the code</div>
+                        <div className="text-sm text-gray-500">Tell them the code - text, call, or in person!</div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-blue-600">3</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">They join</div>
+                        <div className="text-sm text-gray-500">They enter the code and you're connected!</div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <div className="font-bold text-blue-800 mb-2">Person 2 (Guest)</div>
-                    <div className="text-sm text-blue-700 space-y-1">
-                      <p>1. Type the 4-letter code</p>
-                      <p>2. Tap <strong>"Join Game"</strong></p>
-                      <p>3. Wait for connection (few seconds)</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-amber-50 rounded-xl p-4">
-                    <div className="font-bold text-amber-800 mb-2">Not Connecting?</div>
-                    <div className="text-sm text-amber-700 space-y-1">
-                      <p>• Turn off VPN on both devices</p>
-                      <p>• Make sure code is entered correctly</p>
-                      <p>• Try: one on WiFi, one on cellular</p>
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4">
+                    <div className="text-sm font-medium text-gray-700 mb-1">Privacy First</div>
+                    <div className="text-xs text-gray-500">
+                      Game data goes directly between your devices. The code is just to help you find each other!
                     </div>
                   </div>
 
@@ -674,35 +691,17 @@ export default function Games({ onBack }) {
                 </button>
               </div>
               <div className="p-5 space-y-4">
-                <div className="bg-green-50 rounded-xl p-3 flex items-center gap-3">
-                  <Wifi className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <div className="text-sm text-green-700">Connected! Host picks the game, then take turns.</div>
+                <div className="bg-green-50 rounded-xl p-4 flex items-center gap-3">
+                  <Wifi className="w-5 h-5 text-green-600" />
+                  <div className="text-sm text-green-700">You're connected! Game moves sync instantly.</div>
                 </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="font-bold text-gray-800 mb-2">Games:</div>
-                  <div className="grid gap-2">
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Tic-Tac-Toe</strong> — Get 3 in a row
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Memory</strong> — Flip cards, match pairs
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Wordle</strong> — Guess the 5-letter word
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Connect Four</strong> — Drop discs, get 4 in a row
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Flower</strong> — Guess letters before flower blooms
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Rock Paper Scissors</strong> — Best of 3 wins
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <strong>Dots & Boxes</strong> — Draw lines, complete boxes
-                    </div>
+                <div className="space-y-3">
+                  <div className="font-medium text-gray-800">Game Tips:</div>
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p><strong>Tic-Tac-Toe:</strong> Take turns placing X's and O's. Get 3 in a row to win!</p>
+                    <p><strong>Memory Match:</strong> Take turns flipping cards. Match pairs to score points!</p>
+                    <p><strong>Word Guess:</strong> Take turns guessing the 5-letter word. Green = right spot, Yellow = wrong spot.</p>
                   </div>
                 </div>
 

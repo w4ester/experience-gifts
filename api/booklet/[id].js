@@ -1,15 +1,3 @@
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-  'https://experience-gifts.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:4173',
-];
-
-function getAllowedOrigin(req) {
-  const origin = req.headers.origin;
-  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-}
-
 // Only initialize Redis if credentials are provided
 let redis = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -22,7 +10,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 
 export default async function handler(req, res) {
   // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', getAllowedOrigin(req));
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

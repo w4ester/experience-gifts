@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus, Cloud, CloudOff, RefreshCw, HelpCircle } from 'lucide-react';
+import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { shareCoupon, downloadICS, getGoogleCalendarURL, getOutlookCalendarURL, getEmailURL, printCoupon } from './utils/couponActions';
 import { createBooklet, fetchBooklet, updateBooklet, getShareUrl, getBookletIdFromUrl } from './utils/cloudSync';
 import Games from './components/Games';
@@ -71,8 +71,6 @@ export default function ExperienceGifts() {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [suggestionType, setSuggestionType] = useState('suggestion');
   const [suggestionText, setSuggestionText] = useState('');
-  const [showCouponHelp, setShowCouponHelp] = useState(false);
-  const [showAddCouponsHelp, setShowAddCouponsHelp] = useState(false);
 
   // Cloud sync state
   const [bookletId, setBookletId] = useState(null);
@@ -402,36 +400,7 @@ export default function ExperienceGifts() {
 
           {/* Main Actions */}
           <div className="space-y-4">
-            {/* View Demo First - helps users understand the app */}
-            <button
-              onClick={() => {
-                setBooklet({ title: "Mom's 2025 Coupon Book", recipient: 'Mom', theme: '🎄 Holiday' });
-                setCoupons([
-                  { ...TEMPLATES[0], id: 1, gifterId: 1, redeemed: true, redeemedAt: 'Jan 15' },
-                  { ...TEMPLATES[1], id: 2, gifterId: 2, redeemed: false },
-                  { ...TEMPLATES[2], id: 3, gifterId: 3, redeemed: false },
-                  { ...TEMPLATES[3], id: 4, gifterId: 1, redeemed: true, redeemedAt: 'Feb 8' },
-                  { ...TEMPLATES[4], id: 5, gifterId: 2, redeemed: false },
-                  { ...TEMPLATES[5], id: 6, gifterId: 3, redeemed: false },
-                ]);
-                setCurrentView('view-booklet');
-                setShowCouponHelp(true); // Auto-show help for demo
-              }}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl p-5 flex items-center justify-between shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold text-lg">View Demo Booklet</div>
-                  <div className="text-purple-100 text-sm">See all the features</div>
-                </div>
-              </div>
-              <ChevronRight className="w-6 h-6" />
-            </button>
-
-            <button
+            <button 
               onClick={() => setCurrentView('create-booklet')}
               className="w-full bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-2xl p-5 flex items-center justify-between shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
@@ -449,7 +418,7 @@ export default function ExperienceGifts() {
 
             {/* Show continue if there's saved progress */}
             {(booklet.title || coupons.length > 0) && (
-              <button
+              <button 
                 onClick={() => setCurrentView('view-booklet')}
                 className="w-full bg-white border-2 border-rose-200 rounded-2xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all"
               >
@@ -465,6 +434,33 @@ export default function ExperienceGifts() {
                 <ChevronRight className="w-6 h-6 text-gray-300" />
               </button>
             )}
+
+            <button
+              onClick={() => {
+                setBooklet({ title: "Mom's 2025 Coupon Book", recipient: 'Mom', theme: '🎄 Holiday' });
+                setCoupons([
+                  { ...TEMPLATES[0], id: 1, gifterId: 1, redeemed: true, redeemedAt: 'Jan 15' },
+                  { ...TEMPLATES[1], id: 2, gifterId: 2, redeemed: false },
+                  { ...TEMPLATES[2], id: 3, gifterId: 3, redeemed: false },
+                  { ...TEMPLATES[3], id: 4, gifterId: 1, redeemed: true, redeemedAt: 'Feb 8' },
+                  { ...TEMPLATES[4], id: 5, gifterId: 2, redeemed: false },
+                  { ...TEMPLATES[5], id: 6, gifterId: 3, redeemed: false },
+                ]);
+                setCurrentView('view-booklet');
+              }}
+              className="w-full bg-white border-2 border-gray-100 rounded-2xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-purple-500" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-gray-800">View Demo Booklet</div>
+                  <div className="text-gray-400 text-sm">See how it works</div>
+                </div>
+              </div>
+              <ChevronRight className="w-6 h-6 text-gray-300" />
+            </button>
 
             <button
               onClick={() => setCurrentView('games')}
@@ -666,13 +662,11 @@ export default function ExperienceGifts() {
           {/* Header */}
           <div className="bg-white px-6 py-4 border-b sticky top-0 z-10">
             <div className="flex items-center justify-between">
-              <button onClick={() => setCurrentView('create-booklet')} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]">
+              <button onClick={() => setCurrentView('create-booklet')} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl">
                 <ArrowLeft className="w-6 h-6 text-gray-600" />
               </button>
               <h2 className="text-lg font-bold text-gray-800">Add Coupons</h2>
-              <button onClick={() => setShowAddCouponsHelp(true)} className="p-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]">
-                <HelpCircle className="w-6 h-6 text-gray-500" />
-              </button>
+              <div className="w-10" />
             </div>
 
             {/* Gifter Selector */}
@@ -843,52 +837,6 @@ export default function ExperienceGifts() {
               </div>
             </div>
           )}
-
-          {/* Add Coupons Help Modal */}
-          {showAddCouponsHelp && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
-                  <h3 className="text-lg font-bold text-gray-800">How to Add Coupons</h3>
-                  <button onClick={() => setShowAddCouponsHelp(false)} className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center">
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div className="bg-amber-50 rounded-xl p-4">
-                    <div className="font-bold text-amber-800 mb-2">Step 1: Pick a Gifter</div>
-                    <p className="text-sm text-amber-700">Tap a name at the top to select who is giving this coupon. Each person gets their own color!</p>
-                  </div>
-
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <div className="font-bold text-blue-800 mb-2">Step 2: Add Coupons</div>
-                    <p className="text-sm text-blue-700">Tap any template to add it, or tap <strong>"+ Custom"</strong> to create your own.</p>
-                  </div>
-
-                  <div className="bg-green-50 rounded-xl p-4">
-                    <div className="font-bold text-green-800 mb-2">Step 3: Review & Continue</div>
-                    <p className="text-sm text-green-700">Your added coupons appear at the top. Tap the trash icon to remove any. When done, tap <strong>"View Booklet"</strong>.</p>
-                  </div>
-
-                  <div className="bg-purple-50 rounded-xl p-4">
-                    <div className="font-bold text-purple-800 mb-2">Tips</div>
-                    <div className="text-sm text-purple-700 space-y-1">
-                      <p>• Multiple people can add coupons</p>
-                      <p>• Mix templates with custom coupons</p>
-                      <p>• Edit gifter names by tapping the pencil</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowAddCouponsHelp(false)}
-                    className="w-full py-3 bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-xl font-medium min-h-[44px]"
-                  >
-                    Got it!
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -932,13 +880,6 @@ export default function ExperienceGifts() {
                     </span>
                   </div>
                 )}
-                <button
-                  onClick={() => setShowCouponHelp(true)}
-                  className="p-2 hover:bg-white/50 rounded-xl"
-                  title="Help"
-                >
-                  <HelpCircle className="w-6 h-6 text-gray-600" />
-                </button>
                 <button
                   onClick={() => setCurrentView('add-coupons')}
                   className="p-2 hover:bg-white/50 rounded-xl"
@@ -1248,84 +1189,6 @@ export default function ExperienceGifts() {
                   className="py-3 px-4 border-2 border-gray-200 rounded-xl font-medium text-gray-600"
                 >
                   Print
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Coupon Help Modal - Feature Walkthrough */}
-        {showCouponHelp && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
-                <h3 className="text-lg font-bold text-gray-800">Welcome! Try These Features</h3>
-                <button onClick={() => setShowCouponHelp(false)} className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center">
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-              <div className="p-5 space-y-4">
-                <p className="text-sm text-gray-600 text-center">This is a demo booklet. Try each feature below!</p>
-
-                {/* Step 1: Redeem */}
-                <div className="bg-green-50 rounded-xl p-4 border-2 border-green-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">1</div>
-                    <span className="font-bold text-green-800">Redeem a Coupon</span>
-                  </div>
-                  <p className="text-sm text-green-700">Tap the <strong>circle</strong> on the right side of any coupon to mark it as used.</p>
-                </div>
-
-                {/* Step 2: Schedule */}
-                <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">2</div>
-                    <span className="font-bold text-blue-800">Schedule to Calendar</span>
-                  </div>
-                  <p className="text-sm text-blue-700">Tap <strong>Schedule</strong> on any coupon. Pick a date, add location, invite family. Works with Google, Outlook, Apple Calendar.</p>
-                </div>
-
-                {/* Step 3: Share */}
-                <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">3</div>
-                    <span className="font-bold text-purple-800">Share a Coupon</span>
-                  </div>
-                  <p className="text-sm text-purple-700">Tap <strong>Share</strong> to send a single coupon via text, email, or other apps.</p>
-                </div>
-
-                {/* Step 4: Print */}
-                <div className="bg-amber-50 rounded-xl p-4 border-2 border-amber-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold">4</div>
-                    <span className="font-bold text-amber-800">Print a Coupon</span>
-                  </div>
-                  <p className="text-sm text-amber-700">Tap the <strong>printer icon</strong> to print a single coupon on paper.</p>
-                </div>
-
-                {/* Step 5: Share Booklet */}
-                <div className="bg-rose-50 rounded-xl p-4 border-2 border-rose-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center text-white text-xs font-bold">5</div>
-                    <span className="font-bold text-rose-800">Share Entire Booklet</span>
-                  </div>
-                  <p className="text-sm text-rose-700">Tap <Share2 className="w-3 h-3 inline" /> in the top menu to get a link. Changes sync across all devices!</p>
-                </div>
-
-                {/* Step 6: Edit */}
-                <div className="bg-gray-100 rounded-xl p-4 border-2 border-gray-300">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs font-bold">6</div>
-                    <span className="font-bold text-gray-800">Edit Coupons</span>
-                  </div>
-                  <p className="text-sm text-gray-700">Tap <Edit3 className="w-3 h-3 inline" /> in the top menu to add or remove coupons.</p>
-                </div>
-
-                <button
-                  onClick={() => setShowCouponHelp(false)}
-                  className="w-full py-3 bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-xl font-medium min-h-[44px]"
-                >
-                  Start Exploring!
                 </button>
               </div>
             </div>
