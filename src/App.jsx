@@ -35,12 +35,25 @@ const colorMap = {
   indigo: { bg: 'bg-indigo-50', border: 'border-indigo-200', icon: 'text-indigo-500', badge: 'bg-indigo-100', gradient: 'from-indigo-400 to-blue-400' },
 };
 
+// Icon lookup map for serialization/deserialization
+const iconMap = {
+  Gift, Coffee, Sparkles, Film, Gamepad2, Car, Bed, Utensils, Music, TreePine, Heart, Calendar, Palette, BookOpen
+};
+
 const STORAGE_KEY = 'experience_gifts_v1';
 
 // Encode/decode booklet state for URL sharing
 const encodeBooklet = (data) => {
   try {
-    return btoa(encodeURIComponent(JSON.stringify(data)));
+    // Convert icon components to strings for serialization
+    const serializable = {
+      ...data,
+      coupons: data.coupons?.map(c => ({
+        ...c,
+        icon: c.icon?.displayName || c.icon?.name || 'Gift'
+      }))
+    };
+    return btoa(encodeURIComponent(JSON.stringify(serializable)));
   } catch {
     return null;
   }
@@ -48,7 +61,19 @@ const encodeBooklet = (data) => {
 
 const decodeBooklet = (encoded) => {
   try {
-    return JSON.parse(decodeURIComponent(atob(encoded)));
+    const data = JSON.parse(decodeURIComponent(atob(encoded)));
+    // Restore icon components from strings
+    if (data.coupons) {
+      data.coupons = data.coupons.map(c => ({
+        ...c,
+        icon: typeof c.icon === 'string'
+          ? iconMap[c.icon] || Gift
+          : c.icon?.displayName
+            ? iconMap[c.icon.displayName] || Gift
+            : Gift
+      }));
+    }
+    return data;
   } catch {
     return null;
   }
