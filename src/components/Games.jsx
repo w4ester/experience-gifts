@@ -1,6 +1,6 @@
 // Games - Simple room codes via signaling server
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users, Circle, Flower2, Hand, Grid2X2 } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users, Circle, Flower2, Hand, Grid2X2, LogOut } from 'lucide-react';
 import { PeerConnection } from '../utils/peerConnection';
 
 // Word list for Wordle
@@ -444,7 +444,20 @@ export default function Games({ onBack }) {
       <div className="max-w-md mx-auto px-4 sm:px-6 py-6 pt-safe">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <button onClick={onBack} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]">
+          <button
+            onClick={() => {
+              if (selectedGame) {
+                // Playing a game - go back to game selection
+                setSelectedGame(null);
+              } else {
+                // In game selection - exit completely
+                peerRef.current?.close();
+                onBack();
+              }
+            }}
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]"
+            title={selectedGame ? "Back to game menu" : "Exit"}
+          >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
           <div className="flex items-center gap-3">
@@ -454,6 +467,16 @@ export default function Games({ onBack }) {
             </div>
             <button onClick={() => setShowHelp(true)} className="p-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]">
               <HelpCircle className="w-5 h-5 text-gray-500" />
+            </button>
+            <button
+              onClick={() => {
+                peerRef.current?.close();
+                onBack();
+              }}
+              className="p-2 hover:bg-red-100 rounded-xl min-h-[44px] min-w-[44px]"
+              title="Disconnect and exit"
+            >
+              <LogOut className="w-5 h-5 text-red-500" />
             </button>
           </div>
         </div>
