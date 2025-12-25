@@ -1,6 +1,6 @@
 // Games - Simple room codes via signaling server
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users, Circle, Flower2, Hand, Grid2X2 } from 'lucide-react';
 import { PeerConnection } from '../utils/peerConnection';
 
 // Word list for Wordle
@@ -196,6 +196,41 @@ export default function Games({ onBack }) {
           currentPlayer: 1,
           gameOver: false,
           won: false
+        };
+      case 'connect4':
+        return {
+          board: Array(6).fill(null).map(() => Array(7).fill(null)),
+          currentPlayer: 1,
+          winner: null
+        };
+      case 'flower':
+        return {
+          word: WORDS[Math.floor(Math.random() * WORDS.length)],
+          guessedLetters: [],
+          wrongGuesses: 0,
+          currentPlayer: 1,
+          gameOver: false,
+          won: false
+        };
+      case 'rps':
+        return {
+          round: 1,
+          maxRounds: 3,
+          choices: { 1: null, 2: null },
+          scores: { 1: 0, 2: 0 },
+          roundResult: null,
+          gameOver: false
+        };
+      case 'dots':
+        const size = 4;
+        return {
+          size,
+          horizontalLines: Array(size + 1).fill(null).map(() => Array(size).fill(null)),
+          verticalLines: Array(size).fill(null).map(() => Array(size + 1).fill(null)),
+          boxes: Array(size).fill(null).map(() => Array(size).fill(null)),
+          currentPlayer: 1,
+          scores: { 1: 0, 2: 0 },
+          gameOver: false
         };
       default:
         return null;
@@ -489,6 +524,66 @@ export default function Games({ onBack }) {
                     </div>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => selectGame('connect4')}
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-red-300 transition-all text-left active:scale-[0.98] active:bg-red-50 min-h-[72px]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                      <Circle className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Connect Four</div>
+                      <div className="text-sm text-gray-500">Drop discs, get 4 in a row</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => selectGame('flower')}
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-pink-300 transition-all text-left active:scale-[0.98] active:bg-pink-50 min-h-[72px]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
+                      <Flower2 className="w-6 h-6 text-pink-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Flower</div>
+                      <div className="text-sm text-gray-500">Guess letters, grow a flower</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => selectGame('rps')}
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-orange-300 transition-all text-left active:scale-[0.98] active:bg-orange-50 min-h-[72px]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <Hand className="w-6 h-6 text-orange-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Rock Paper Scissors</div>
+                      <div className="text-sm text-gray-500">Best of 3 rounds</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => selectGame('dots')}
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-teal-300 transition-all text-left active:scale-[0.98] active:bg-teal-50 min-h-[72px]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                      <Grid2X2 className="w-6 h-6 text-teal-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Dots and Boxes</div>
+                      <div className="text-sm text-gray-500">Draw lines, complete squares</div>
+                    </div>
+                  </div>
+                </button>
               </div>
             )}
 
@@ -526,6 +621,42 @@ export default function Games({ onBack }) {
                 playerRole={isHost ? 1 : 2}
                 onMove={sendGameState}
                 onNewGame={() => selectGame('wordle')}
+                isHost={isHost}
+              />
+            )}
+            {selectedGame === 'connect4' && (
+              <ConnectFour
+                gameState={gameState}
+                playerRole={isHost ? 1 : 2}
+                onMove={sendGameState}
+                onNewGame={() => selectGame('connect4')}
+                isHost={isHost}
+              />
+            )}
+            {selectedGame === 'flower' && (
+              <FlowerGame
+                gameState={gameState}
+                playerRole={isHost ? 1 : 2}
+                onMove={sendGameState}
+                onNewGame={() => selectGame('flower')}
+                isHost={isHost}
+              />
+            )}
+            {selectedGame === 'rps' && (
+              <RockPaperScissors
+                gameState={gameState}
+                playerRole={isHost ? 1 : 2}
+                onMove={sendGameState}
+                onNewGame={() => selectGame('rps')}
+                isHost={isHost}
+              />
+            )}
+            {selectedGame === 'dots' && (
+              <DotsAndBoxes
+                gameState={gameState}
+                playerRole={isHost ? 1 : 2}
+                onMove={sendGameState}
+                onNewGame={() => selectGame('dots')}
                 isHost={isHost}
               />
             )}
@@ -866,6 +997,370 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
             >
               <RefreshCw className="w-4 h-4" />
               Play Again
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Connect Four Component
+function ConnectFour({ gameState, playerRole, onMove, onNewGame, isHost }) {
+  const { board, currentPlayer, winner } = gameState;
+
+  const dropDisc = (col) => {
+    if (winner || currentPlayer !== playerRole) return;
+    let row = -1;
+    for (let r = 5; r >= 0; r--) {
+      if (!board[r][col]) { row = r; break; }
+    }
+    if (row === -1) return;
+
+    const newBoard = board.map(r => [...r]);
+    newBoard[row][col] = currentPlayer;
+
+    const newWinner = checkConnect4Winner(newBoard, row, col, currentPlayer);
+    const isDraw = !newWinner && newBoard.every(r => r.every(c => c));
+
+    onMove({
+      board: newBoard,
+      currentPlayer: currentPlayer === 1 ? 2 : 1,
+      winner: newWinner ? currentPlayer : (isDraw ? 'draw' : null)
+    });
+  };
+
+  const checkConnect4Winner = (b, row, col, player) => {
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    for (const [dr, dc] of directions) {
+      let count = 1;
+      for (let i = 1; i < 4; i++) {
+        const r = row + dr * i, c = col + dc * i;
+        if (r >= 0 && r < 6 && c >= 0 && c < 7 && b[r][c] === player) count++;
+        else break;
+      }
+      for (let i = 1; i < 4; i++) {
+        const r = row - dr * i, c = col - dc * i;
+        if (r >= 0 && r < 6 && c >= 0 && c < 7 && b[r][c] === player) count++;
+        else break;
+      }
+      if (count >= 4) return true;
+    }
+    return false;
+  };
+
+  return (
+    <div className="text-center">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Connect Four</h3>
+      <p className="text-gray-500 mb-4">
+        You are <span className={`font-bold ${playerRole === 1 ? 'text-red-500' : 'text-yellow-500'}`}>
+          {playerRole === 1 ? 'Red' : 'Yellow'}
+        </span>
+        {!winner && (currentPlayer === playerRole ? " - Your turn!" : " - Waiting...")}
+      </p>
+
+      <div className="inline-block bg-blue-600 p-2 rounded-xl">
+        {[0, 1, 2, 3, 4, 5].map(row => (
+          <div key={row} className="flex gap-1">
+            {[0, 1, 2, 3, 4, 5, 6].map(col => (
+              <button
+                key={col}
+                onClick={() => dropDisc(col)}
+                disabled={winner || currentPlayer !== playerRole}
+                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-blue-700 transition-all active:scale-95 ${
+                  board[row][col] === 1 ? 'bg-red-500' :
+                  board[row][col] === 2 ? 'bg-yellow-400' : 'bg-white hover:bg-gray-100'
+                }`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {winner && (
+        <div className="mt-4">
+          <div className={`text-xl font-bold ${winner === 'draw' ? 'text-gray-600' : winner === playerRole ? 'text-green-600' : 'text-red-600'}`}>
+            {winner === 'draw' ? "It's a draw!" : winner === playerRole ? 'You win!' : 'You lost!'}
+          </div>
+          {isHost && (
+            <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 mx-auto min-h-[44px]">
+              <RefreshCw className="w-4 h-4" /> Play Again
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Flower Game Component
+function FlowerGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
+  const { word, guessedLetters, wrongGuesses, currentPlayer, gameOver, won } = gameState;
+  const maxWrong = 6;
+  const isMyTurn = currentPlayer === playerRole;
+
+  const guessLetter = (letter) => {
+    if (gameOver || !isMyTurn || guessedLetters.includes(letter)) return;
+    const newGuessed = [...guessedLetters, letter];
+    const isWrong = !word.includes(letter);
+    const newWrongGuesses = isWrong ? wrongGuesses + 1 : wrongGuesses;
+    const allLettersGuessed = word.split('').every(l => newGuessed.includes(l));
+    const isLost = newWrongGuesses >= maxWrong;
+
+    onMove({
+      ...gameState,
+      guessedLetters: newGuessed,
+      wrongGuesses: newWrongGuesses,
+      currentPlayer: currentPlayer === 1 ? 2 : 1,
+      gameOver: allLettersGuessed || isLost,
+      won: allLettersGuessed && !isLost
+    });
+  };
+
+  const displayWord = word.split('').map(l => guessedLetters.includes(l) ? l : '_').join(' ');
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  return (
+    <div className="text-center">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Flower</h3>
+      <p className="text-gray-500 mb-2">{!gameOver && (isMyTurn ? "Your turn!" : "Waiting...")}</p>
+      <p className="text-sm text-gray-400 mb-4">Wrong: {wrongGuesses}/{maxWrong}</p>
+
+      <div className="w-32 h-40 mx-auto mb-4 relative">
+        {wrongGuesses >= 1 && <div className="absolute bottom-0 left-1/2 w-2 h-20 bg-green-500 -translate-x-1/2 rounded-full" />}
+        {wrongGuesses >= 2 && <div className="absolute bottom-8 left-1/2 w-6 h-3 bg-green-500 -translate-x-8 rotate-[-30deg] rounded-full" />}
+        {wrongGuesses >= 3 && <div className="absolute bottom-12 left-1/2 w-6 h-3 bg-green-500 translate-x-2 rotate-[30deg] rounded-full" />}
+        {wrongGuesses >= 4 && <div className="absolute top-4 left-1/2 w-8 h-8 bg-yellow-400 -translate-x-1/2 rounded-full" />}
+        {wrongGuesses >= 5 && <>
+          <div className="absolute top-0 left-1/2 w-6 h-6 bg-pink-400 -translate-x-1/2 -translate-y-2 rounded-full" />
+          <div className="absolute top-4 left-1/2 w-6 h-6 bg-pink-400 -translate-x-8 rounded-full" />
+          <div className="absolute top-4 left-1/2 w-6 h-6 bg-pink-400 translate-x-2 rounded-full" />
+        </>}
+        {wrongGuesses >= 6 && <>
+          <div className="absolute top-8 left-1/2 w-6 h-6 bg-pink-400 -translate-x-1/2 translate-y-2 rounded-full" />
+          <div className="absolute top-2 left-1/2 w-6 h-6 bg-pink-400 -translate-x-6 -translate-y-1 rounded-full" />
+          <div className="absolute top-2 left-1/2 w-6 h-6 bg-pink-400 translate-x-1 -translate-y-1 rounded-full" />
+        </>}
+      </div>
+
+      <div className="text-3xl font-bold tracking-[0.3em] mb-6 font-mono">{displayWord}</div>
+
+      {!gameOver && (
+        <div className="grid grid-cols-9 gap-1 max-w-xs mx-auto">
+          {alphabet.map(letter => (
+            <button
+              key={letter}
+              onClick={() => guessLetter(letter)}
+              disabled={!isMyTurn || guessedLetters.includes(letter)}
+              className={`w-8 h-8 rounded font-bold text-sm transition-all ${
+                guessedLetters.includes(letter)
+                  ? word.includes(letter) ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
+                  : isMyTurn ? 'bg-purple-100 text-purple-700 active:scale-95' : 'bg-gray-100 text-gray-400'
+              }`}
+            >{letter}</button>
+          ))}
+        </div>
+      )}
+
+      {gameOver && (
+        <div className="mt-4">
+          <div className={`text-xl font-bold ${won ? 'text-green-600' : 'text-gray-600'}`}>
+            {won ? 'You saved the flower!' : `The word was: ${word}`}
+          </div>
+          {isHost && (
+            <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 mx-auto min-h-[44px]">
+              <RefreshCw className="w-4 h-4" /> Play Again
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Rock Paper Scissors Component
+function RockPaperScissors({ gameState, playerRole, onMove, onNewGame, isHost }) {
+  const { round, maxRounds, choices, scores, roundResult, gameOver } = gameState;
+  const emojis = { rock: '🪨', paper: '📄', scissors: '✂️' };
+
+  const makeChoice = (choice) => {
+    if (gameOver || choices[playerRole]) return;
+    const newChoices = { ...choices, [playerRole]: choice };
+
+    if (newChoices[1] && newChoices[2]) {
+      const p1 = newChoices[1], p2 = newChoices[2];
+      let result = 'tie';
+      if ((p1 === 'rock' && p2 === 'scissors') || (p1 === 'paper' && p2 === 'rock') || (p1 === 'scissors' && p2 === 'paper')) result = 1;
+      else if (p1 !== p2) result = 2;
+
+      const newScores = { ...scores };
+      if (result === 1) newScores[1]++;
+      else if (result === 2) newScores[2]++;
+
+      const winsNeeded = Math.ceil(maxRounds / 2);
+      const isOver = newScores[1] >= winsNeeded || newScores[2] >= winsNeeded;
+
+      onMove({ ...gameState, choices: newChoices, scores: newScores, roundResult: result, gameOver: isOver });
+
+      if (!isOver) {
+        setTimeout(() => {
+          onMove({ ...gameState, round: round + 1, choices: { 1: null, 2: null }, scores: newScores, roundResult: null, gameOver: false });
+        }, 2000);
+      }
+    } else {
+      onMove({ ...gameState, choices: newChoices });
+    }
+  };
+
+  const winner = scores[1] > scores[2] ? 1 : scores[2] > scores[1] ? 2 : 'tie';
+
+  return (
+    <div className="text-center">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Rock Paper Scissors</h3>
+      <p className="text-gray-500 mb-2">Best of {maxRounds} - Round {round}</p>
+
+      <div className="flex justify-center gap-6 mb-4">
+        <div className={`px-4 py-2 rounded-full ${playerRole === 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'}`}>You: {scores[playerRole]}</div>
+        <div className={`px-4 py-2 rounded-full ${playerRole !== 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'}`}>Them: {scores[playerRole === 1 ? 2 : 1]}</div>
+      </div>
+
+      {!gameOver && !roundResult && (
+        <div className="space-y-4">
+          <p className="text-gray-600">{choices[playerRole] ? 'Waiting for opponent...' : 'Make your choice!'}</p>
+          <div className="flex justify-center gap-4">
+            {['rock', 'paper', 'scissors'].map(c => (
+              <button key={c} onClick={() => makeChoice(c)} disabled={choices[playerRole]}
+                className={`w-20 h-20 rounded-2xl text-4xl flex items-center justify-center transition-all ${
+                  choices[playerRole] === c ? 'bg-purple-200 scale-110' : choices[playerRole] ? 'bg-gray-100 opacity-50' : 'bg-purple-100 active:scale-95'
+                }`}>{emojis[c]}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {roundResult && !gameOver && (
+        <div className="py-8">
+          <div className="flex justify-center gap-8 text-5xl mb-4">
+            <span>{emojis[choices[playerRole]]}</span><span className="text-gray-400">vs</span><span>{emojis[choices[playerRole === 1 ? 2 : 1]]}</span>
+          </div>
+          <div className={`text-xl font-bold ${roundResult === playerRole ? 'text-green-600' : roundResult === 'tie' ? 'text-gray-600' : 'text-red-600'}`}>
+            {roundResult === 'tie' ? 'Tie!' : roundResult === playerRole ? 'You win this round!' : 'They win this round!'}
+          </div>
+        </div>
+      )}
+
+      {gameOver && (
+        <div className="mt-4">
+          <div className="flex justify-center gap-8 text-5xl mb-4">
+            <span>{emojis[choices[playerRole]]}</span><span className="text-gray-400">vs</span><span>{emojis[choices[playerRole === 1 ? 2 : 1]]}</span>
+          </div>
+          <div className={`text-xl font-bold ${winner === playerRole ? 'text-green-600' : winner === 'tie' ? 'text-gray-600' : 'text-red-600'}`}>
+            {winner === 'tie' ? "It's a tie!" : winner === playerRole ? 'You win!' : 'They win!'}
+          </div>
+          {isHost && (
+            <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 mx-auto min-h-[44px]">
+              <RefreshCw className="w-4 h-4" /> Play Again
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Dots and Boxes Component
+function DotsAndBoxes({ gameState, playerRole, onMove, onNewGame, isHost }) {
+  const { size, horizontalLines, verticalLines, boxes, currentPlayer, scores, gameOver } = gameState;
+
+  const drawLine = (type, row, col) => {
+    if (gameOver || currentPlayer !== playerRole) return;
+    const lines = type === 'h' ? horizontalLines : verticalLines;
+    if (lines[row][col]) return;
+
+    const newH = horizontalLines.map(r => [...r]);
+    const newV = verticalLines.map(r => [...r]);
+    if (type === 'h') newH[row][col] = currentPlayer;
+    else newV[row][col] = currentPlayer;
+
+    const newBoxes = boxes.map(r => [...r]);
+    let completed = 0;
+
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (!newBoxes[r][c] && newH[r][c] && newH[r + 1][c] && newV[r][c] && newV[r][c + 1]) {
+          newBoxes[r][c] = currentPlayer;
+          completed++;
+        }
+      }
+    }
+
+    const newScores = { ...scores };
+    if (completed > 0) newScores[currentPlayer] += completed;
+
+    onMove({
+      size, horizontalLines: newH, verticalLines: newV, boxes: newBoxes,
+      currentPlayer: completed > 0 ? currentPlayer : (currentPlayer === 1 ? 2 : 1),
+      scores: newScores, gameOver: newBoxes.every(r => r.every(c => c))
+    });
+  };
+
+  const winner = gameOver ? (scores[1] > scores[2] ? 1 : scores[2] > scores[1] ? 2 : 'tie') : null;
+
+  return (
+    <div className="text-center">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Dots and Boxes</h3>
+      <div className="flex justify-center gap-6 mb-4">
+        <div className={`px-4 py-2 rounded-full ${playerRole === 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'}`}>You: {scores[playerRole]}</div>
+        <div className={`px-4 py-2 rounded-full ${playerRole !== 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'}`}>Them: {scores[playerRole === 1 ? 2 : 1]}</div>
+      </div>
+      <p className="text-gray-500 mb-4">{!gameOver && (currentPlayer === playerRole ? "Your turn!" : "Waiting...")}</p>
+
+      <div className="inline-block p-2">
+        {Array(size * 2 + 1).fill(null).map((_, i) => (
+          <div key={i} className="flex items-center justify-center">
+            {i % 2 === 0 ? (
+              // Dot row with horizontal lines
+              Array(size * 2 + 1).fill(null).map((_, j) => (
+                j % 2 === 0 ? (
+                  <div key={j} className="w-3 h-3 bg-gray-800 rounded-full" />
+                ) : (
+                  <button key={j} onClick={() => drawLine('h', i / 2, (j - 1) / 2)}
+                    disabled={gameOver || currentPlayer !== playerRole || horizontalLines[i / 2][(j - 1) / 2]}
+                    className={`w-8 h-3 mx-0.5 rounded ${
+                      horizontalLines[i / 2][(j - 1) / 2] ? (horizontalLines[i / 2][(j - 1) / 2] === 1 ? 'bg-purple-500' : 'bg-blue-500')
+                      : 'bg-gray-200 hover:bg-gray-300'
+                    }`} />
+                )
+              ))
+            ) : (
+              // Vertical line row with boxes
+              Array(size * 2 + 1).fill(null).map((_, j) => (
+                j % 2 === 0 ? (
+                  <button key={j} onClick={() => drawLine('v', (i - 1) / 2, j / 2)}
+                    disabled={gameOver || currentPlayer !== playerRole || verticalLines[(i - 1) / 2][j / 2]}
+                    className={`w-3 h-8 my-0.5 rounded ${
+                      verticalLines[(i - 1) / 2][j / 2] ? (verticalLines[(i - 1) / 2][j / 2] === 1 ? 'bg-purple-500' : 'bg-blue-500')
+                      : 'bg-gray-200 hover:bg-gray-300'
+                    }`} />
+                ) : (
+                  <div key={j} className={`w-8 h-8 mx-0.5 my-0.5 rounded ${
+                    boxes[(i - 1) / 2][(j - 1) / 2] ? (boxes[(i - 1) / 2][(j - 1) / 2] === 1 ? 'bg-purple-200' : 'bg-blue-200') : ''
+                  }`} />
+                )
+              ))
+            )}
+          </div>
+        ))}
+      </div>
+
+      {gameOver && (
+        <div className="mt-4">
+          <div className={`text-xl font-bold ${winner === playerRole ? 'text-green-600' : winner === 'tie' ? 'text-gray-600' : 'text-red-600'}`}>
+            {winner === 'tie' ? "It's a tie!" : winner === playerRole ? 'You win!' : 'They win!'}
+          </div>
+          {isHost && (
+            <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 mx-auto min-h-[44px]">
+              <RefreshCw className="w-4 h-4" /> Play Again
             </button>
           )}
         </div>
