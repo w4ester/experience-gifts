@@ -1,9 +1,9 @@
-// Lazy Redis initialization for serverless
+// Lazy Redis initialization for serverless ESM
 let redis = null;
-function getRedis() {
+async function getRedis() {
   if (redis) return redis;
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    const { Redis } = require('@upstash/redis');
+    const { Redis } = await import('@upstash/redis');
     redis = new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -17,7 +17,7 @@ const rooms = global.signalRooms || (global.signalRooms = new Map());
 
 // Helper to get room from Redis or memory
 async function getRoom(code) {
-  const redisClient = getRedis();
+  const redisClient = await getRedis();
   if (redisClient) {
     const data = await redisClient.get(`signal:${code}`);
     if (!data) return null;
@@ -28,7 +28,7 @@ async function getRoom(code) {
 
 // Helper to save room to Redis or memory
 async function saveRoom(code, room) {
-  const redisClient = getRedis();
+  const redisClient = await getRedis();
   if (redisClient) {
     await redisClient.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
   } else {
@@ -38,7 +38,7 @@ async function saveRoom(code, room) {
 
 // Helper to delete room
 async function deleteRoom(code) {
-  const redisClient = getRedis();
+  const redisClient = await getRedis();
   if (redisClient) {
     await redisClient.del(`signal:${code}`);
   } else {
