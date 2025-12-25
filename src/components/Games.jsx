@@ -256,13 +256,13 @@ export default function Games({ onBack }) {
 
               <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="font-semibold text-gray-800 mb-3">Join a Game</div>
-                <div className="flex gap-3 items-center">
+                <div className="space-y-3">
                   <input
                     type="text"
                     value={inputCode}
                     onChange={(e) => setInputCode(e.target.value.toLowerCase().slice(0, 4))}
-                    placeholder="code"
-                    className="w-28 shrink-0 px-2 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-[20px] font-bold tracking-[0.15em] lowercase min-h-[56px]"
+                    placeholder="enter code"
+                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-[20px] font-bold tracking-[0.2em] lowercase min-h-[56px]"
                     maxLength={4}
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -271,7 +271,7 @@ export default function Games({ onBack }) {
                   <button
                     onClick={joinWithCode}
                     disabled={inputCode.length !== 4}
-                    className="flex-1 py-4 bg-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 min-h-[56px] active:scale-95 transition-transform text-lg"
+                    className="w-full py-4 bg-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 min-h-[56px] active:scale-95 transition-transform text-lg"
                   >
                     Join Game
                   </button>
