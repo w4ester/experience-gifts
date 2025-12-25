@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { Gift, Plus, Check, Heart, Coffee, Gamepad2, Film, Sparkles, Car, Bed, Calendar, ChevronRight, ArrowLeft, Users, BookOpen, Share2, Palette, Music, Utensils, TreePine, Download, X, Edit3, Trash2, Printer, ExternalLink, Mail, MessageSquarePlus, Cloud, CloudOff, RefreshCw, HelpCircle } from 'lucide-react';
 import { shareCoupon, downloadICS, getGoogleCalendarURL, getOutlookCalendarURL, getEmailURL, printCoupon } from './utils/couponActions';
 import { createBooklet, fetchBooklet, updateBooklet, getShareUrl, getBookletIdFromUrl } from './utils/cloudSync';
 import Games from './components/Games';
@@ -71,6 +71,7 @@ export default function ExperienceGifts() {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [suggestionType, setSuggestionType] = useState('suggestion');
   const [suggestionText, setSuggestionText] = useState('');
+  const [showCouponHelp, setShowCouponHelp] = useState(false);
 
   // Cloud sync state
   const [bookletId, setBookletId] = useState(null);
@@ -881,6 +882,13 @@ export default function ExperienceGifts() {
                   </div>
                 )}
                 <button
+                  onClick={() => setShowCouponHelp(true)}
+                  className="p-2 hover:bg-white/50 rounded-xl"
+                  title="Help"
+                >
+                  <HelpCircle className="w-6 h-6 text-gray-600" />
+                </button>
+                <button
                   onClick={() => setCurrentView('add-coupons')}
                   className="p-2 hover:bg-white/50 rounded-xl"
                   title="Edit coupons"
@@ -1189,6 +1197,86 @@ export default function ExperienceGifts() {
                   className="py-3 px-4 border-2 border-gray-200 rounded-xl font-medium text-gray-600"
                 >
                   Print
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Coupon Help Modal */}
+        {showCouponHelp && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white rounded-t-2xl">
+                <h3 className="text-lg font-bold text-gray-800">How to Use Your Coupons</h3>
+                <button onClick={() => setShowCouponHelp(false)} className="p-2 hover:bg-gray-100 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* Redeeming */}
+                <div className="bg-green-50 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="font-bold text-green-800">Redeem a Coupon</div>
+                  </div>
+                  <p className="text-sm text-green-700">Tap the circle on the right to mark a coupon as used. It will show when it was redeemed!</p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <div className="font-bold text-gray-800">Coupon Actions</div>
+
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-800">Schedule</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Add this experience to your calendar. Pick a date/time, add location, invite others. Works with Google Calendar, Outlook, and Apple Calendar.</p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Share2 className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-800">Share</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Send this coupon via text, email, or other apps. Great for reminding family about their gift!</p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Printer className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-800">Print</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Print a single coupon on paper. Perfect for wrapping with a physical gift!</p>
+                  </div>
+                </div>
+
+                {/* Cloud Sync */}
+                <div className="bg-blue-50 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Cloud className="w-4 h-4 text-blue-600" />
+                    <span className="font-bold text-blue-800">Cloud Sync</span>
+                  </div>
+                  <p className="text-sm text-blue-700">When you share the booklet link, changes sync automatically. Everyone with the link sees the same coupons!</p>
+                </div>
+
+                {/* Header Buttons */}
+                <div className="space-y-3">
+                  <div className="font-bold text-gray-800">Top Menu</div>
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p><Edit3 className="w-4 h-4 inline mr-2" /><strong>Edit</strong> — Add or remove coupons</p>
+                    <p><Share2 className="w-4 h-4 inline mr-2" /><strong>Share</strong> — Get a link to share the whole booklet</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowCouponHelp(false)}
+                  className="w-full py-3 bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-xl font-medium min-h-[44px]"
+                >
+                  Got it!
                 </button>
               </div>
             </div>
