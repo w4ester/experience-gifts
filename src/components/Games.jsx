@@ -213,8 +213,8 @@ export default function Games({ onBack }) {
   // Connection setup screens
   if (step !== 'connected') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        <div className="max-w-md mx-auto px-6 py-8">
+      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-safe">
+        <div className="max-w-md mx-auto px-4 sm:px-6 py-6 pt-safe">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
@@ -248,7 +248,7 @@ export default function Games({ onBack }) {
 
               <button
                 onClick={startAsHost}
-                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-2xl p-5 text-left hover:shadow-lg transition-all"
+                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-2xl p-5 text-left hover:shadow-lg transition-all active:scale-[0.98] min-h-[72px]"
               >
                 <div className="font-semibold text-lg">Start a Game</div>
                 <div className="text-purple-100 text-sm">Get a code to share with family</div>
@@ -256,19 +256,22 @@ export default function Games({ onBack }) {
 
               <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="font-semibold text-gray-800 mb-3">Join a Game</div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <input
                     type="text"
                     value={inputCode}
                     onChange={(e) => setInputCode(e.target.value.toLowerCase().slice(0, 4))}
                     placeholder="code"
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-2xl font-bold tracking-[0.3em] lowercase"
+                    className="flex-1 px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-[22px] font-bold tracking-[0.3em] lowercase min-h-[56px]"
                     maxLength={4}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    autoComplete="off"
                   />
                   <button
                     onClick={joinWithCode}
                     disabled={inputCode.length !== 4}
-                    className="px-6 py-3 bg-purple-500 text-white rounded-xl font-medium disabled:opacity-50 min-h-[44px]"
+                    className="px-8 py-4 bg-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 min-h-[56px] min-w-[80px] active:scale-95 transition-transform"
                   >
                     Join
                   </button>
@@ -322,7 +325,7 @@ export default function Games({ onBack }) {
                   setStep('choose');
                   setRoomCode('');
                 }}
-                className="w-full py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]"
+                className="w-full py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[48px] active:scale-[0.98] active:bg-gray-100 transition-all"
               >
                 Cancel
               </button>
@@ -410,8 +413,8 @@ export default function Games({ onBack }) {
 
   // Connected - show game selection or active game
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      <div className="max-w-md mx-auto px-6 py-8">
+    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-safe">
+      <div className="max-w-md mx-auto px-4 sm:px-6 py-6 pt-safe">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={onBack} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl min-h-[44px] min-w-[44px]">
@@ -442,7 +445,7 @@ export default function Games({ onBack }) {
               <div className="grid gap-4">
                 <button
                   onClick={() => selectGame('tictactoe')}
-                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-purple-300 transition-all text-left"
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-purple-300 transition-all text-left active:scale-[0.98] active:bg-purple-50 min-h-[72px]"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -457,7 +460,7 @@ export default function Games({ onBack }) {
 
                 <button
                   onClick={() => selectGame('matching')}
-                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-blue-300 transition-all text-left"
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-blue-300 transition-all text-left active:scale-[0.98] active:bg-blue-50 min-h-[72px]"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -472,7 +475,7 @@ export default function Games({ onBack }) {
 
                 <button
                   onClick={() => selectGame('wordle')}
-                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-green-300 transition-all text-left"
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-green-300 transition-all text-left active:scale-[0.98] active:bg-green-50 min-h-[72px]"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -530,7 +533,7 @@ export default function Games({ onBack }) {
                 setSelectedGame(null);
                 peerRef.current?.send({ type: 'game-select', game: null, initialState: null });
               }}
-              className="w-full mt-6 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[44px]"
+              className="w-full mt-6 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[48px] active:scale-[0.98] active:bg-gray-100 transition-all"
             >
               Choose Different Game
             </button>
@@ -621,17 +624,17 @@ function TicTacToe({ gameState, playerRole, onMove, onNewGame, isHost }) {
         )}
       </p>
 
-      <div className="grid grid-cols-3 gap-2 max-w-[280px] mx-auto mb-6">
+      <div className="grid grid-cols-3 gap-3 w-full max-w-[340px] mx-auto mb-6 px-2">
         {board.map((cell, i) => (
           <button
             key={i}
             onClick={() => handleClick(i)}
             disabled={cell || winner || currentPlayer !== playerRole}
-            className={`aspect-square rounded-xl text-4xl font-bold flex items-center justify-center transition-all min-h-[80px] ${
+            className={`aspect-square rounded-2xl text-5xl font-bold flex items-center justify-center transition-all active:scale-95 ${
               cell
                 ? 'bg-gray-100'
                 : currentPlayer === playerRole
-                ? 'bg-purple-100 hover:bg-purple-200'
+                ? 'bg-purple-100 active:bg-purple-200'
                 : 'bg-gray-50'
             } ${cell === 'X' ? 'text-purple-600' : 'text-blue-600'}`}
           >
@@ -723,17 +726,17 @@ function MatchingGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
         {currentPlayer === playerRole ? "Your turn!" : "Waiting..."}
       </p>
 
-      <div className="grid grid-cols-4 gap-2 max-w-[320px] mx-auto mb-6">
+      <div className="grid grid-cols-4 gap-2 w-full max-w-[340px] mx-auto mb-6 px-2">
         {cards.map(card => (
           <button
             key={card.id}
             onClick={() => handleCardClick(card.id)}
             disabled={card.flipped || card.matched || currentPlayer !== playerRole}
-            className={`aspect-square rounded-xl text-2xl flex items-center justify-center transition-all min-h-[60px] ${
+            className={`aspect-square rounded-xl text-3xl flex items-center justify-center transition-all active:scale-95 ${
               card.flipped || card.matched
                 ? 'bg-white border-2 border-purple-200'
                 : currentPlayer === playerRole
-                ? 'bg-purple-500 hover:bg-purple-600'
+                ? 'bg-purple-500 active:bg-purple-600'
                 : 'bg-gray-400'
             }`}
           >
@@ -813,7 +816,7 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
                 return (
                   <div
                     key={colIndex}
-                    className={`w-12 h-12 flex items-center justify-center text-xl font-bold rounded-lg ${
+                    className={`w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center text-xl font-bold rounded-lg ${
                       guess ? getLetterColor(letter, colIndex) : 'bg-gray-200'
                     }`}
                   >
@@ -827,19 +830,22 @@ function WordleGame({ gameState, playerRole, onMove, onNewGame, isHost }) {
       </div>
 
       {!gameOver && isMyTurn && (
-        <form onSubmit={handleSubmit} className="flex gap-2 justify-center">
+        <form onSubmit={handleSubmit} className="flex gap-3 justify-center px-4">
           <input
             type="text"
             value={localGuess}
             onChange={(e) => setLocalGuess(e.target.value.slice(0, 5))}
             placeholder="GUESS"
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center uppercase font-bold tracking-widest w-40 min-h-[44px]"
+            className="px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center uppercase font-bold tracking-widest flex-1 max-w-[180px] min-h-[56px] text-lg"
             maxLength={5}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            autoComplete="off"
           />
           <button
             type="submit"
             disabled={localGuess.length !== 5}
-            className="px-6 py-3 bg-purple-500 text-white rounded-xl font-medium disabled:opacity-50 min-h-[44px]"
+            className="px-6 py-4 bg-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 min-h-[56px] active:scale-95 transition-transform"
           >
             Guess
           </button>
