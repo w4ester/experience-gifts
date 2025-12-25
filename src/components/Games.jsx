@@ -188,7 +188,8 @@ export default function Games({ onBack }) {
   const getInitialState = (game) => {
     switch (game) {
       case 'tictactoe':
-        return { board: Array(9).fill(null), currentPlayer: 'X', winner: null };
+        // Host always goes first, use their assigned role
+        return { board: Array(9).fill(null), currentPlayer: playerRole || 'X', winner: null };
       case 'matching':
         const emojis = ['🎁', '🎄', '⭐', '🔔', '❄️', '🦌', '🎅', '🤶'];
         const cards = [...emojis, ...emojis]
