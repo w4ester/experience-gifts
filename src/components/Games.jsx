@@ -124,7 +124,7 @@ export default function Games({ onBack }) {
 
     try {
       // Get host's offer from signaling server
-      const offerRes = await fetch(`/api/signal/${inputCode.toUpperCase()}`);
+      const offerRes = await fetch(`/api/signal/${inputCode.toLowerCase()}`);
 
       if (offerRes.status === 404) {
         setError('Room not found. Check the code and try again.');
@@ -141,7 +141,7 @@ export default function Games({ onBack }) {
       const answer = await peerRef.current.acceptOffer(offer);
 
       // Send answer to signaling server
-      await fetch(`/api/signal/${inputCode.toUpperCase()}`, {
+      await fetch(`/api/signal/${inputCode.toLowerCase()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sdp: answer })
@@ -260,9 +260,9 @@ export default function Games({ onBack }) {
                   <input
                     type="text"
                     value={inputCode}
-                    onChange={(e) => setInputCode(e.target.value.toUpperCase().slice(0, 4))}
-                    placeholder="CODE"
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-2xl font-bold tracking-[0.5em] uppercase"
+                    onChange={(e) => setInputCode(e.target.value.toLowerCase().slice(0, 4))}
+                    placeholder="code"
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none text-center text-2xl font-bold tracking-[0.3em] lowercase"
                     maxLength={4}
                   />
                   <button

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   const { code } = req.query;
-  const roomCode = code?.toUpperCase()?.trim();
+  const roomCode = code?.toLowerCase()?.trim();
 
   if (!roomCode) {
     return res.status(400).json({ error: 'Room code required' });

@@ -2,9 +2,9 @@
 // Vercel edge functions are stateless, so we use a simple Map with cleanup
 const rooms = global.signalRooms || (global.signalRooms = new Map());
 
-// Generate friendly 4-char code (no confusing chars like 0/O, 1/I/L)
+// Generate friendly 4-char code (lowercase, no confusing chars like 0/o, 1/l)
 function generateCode() {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
   let code = '';
   for (let i = 0; i < 4; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
