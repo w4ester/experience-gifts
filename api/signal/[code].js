@@ -1,12 +1,15 @@
-import { Redis } from '@upstash/redis';
-
-// Redis for persistent storage (if configured), otherwise in-memory fallback
+// Lazy Redis initialization for serverless
 let redis = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
+function getRedis() {
+  if (redis) return redis;
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const { Redis } = require('@upstash/redis');
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return redis;
 }
 
 // Fallback in-memory storage (shared with create.js)
@@ -14,8 +17,9 @@ const rooms = global.signalRooms || (global.signalRooms = new Map());
 
 // Helper to get room from Redis or memory
 async function getRoom(code) {
-  if (redis) {
-    const data = await redis.get(`signal:${code}`);
+  const redisClient = getRedis();
+  if (redisClient) {
+    const data = await redisClient.get(`signal:${code}`);
     if (!data) return null;
     return typeof data === 'string' ? JSON.parse(data) : data;
   }
@@ -24,8 +28,9 @@ async function getRoom(code) {
 
 // Helper to save room to Redis or memory
 async function saveRoom(code, room) {
-  if (redis) {
-    await redis.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
+  const redisClient = getRedis();
+  if (redisClient) {
+    await redisClient.set(`signal:${code}`, JSON.stringify(room), { ex: 900 });
   } else {
     rooms.set(code, room);
   }
@@ -33,8 +38,9 @@ async function saveRoom(code, room) {
 
 // Helper to delete room
 async function deleteRoom(code) {
-  if (redis) {
-    await redis.del(`signal:${code}`);
+  const redisClient = getRedis();
+  if (redisClient) {
+    await redisClient.del(`signal:${code}`);
   } else {
     rooms.delete(code);
   }
