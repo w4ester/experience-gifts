@@ -1,6 +1,6 @@
 // Games v2 - QR codes + URL sharing
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X, QrCode, Link, Smartphone } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Users, Wifi, WifiOff, RefreshCw, HelpCircle, X, QrCode, Link, Smartphone, Share2, Mail, MessageSquare } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import LZString from 'lz-string';
 import { PeerConnection } from '../utils/peerConnection';
@@ -460,6 +460,39 @@ export default function Games({ onBack }) {
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copied ? 'Copied!' : 'Copy Link'}
                   </button>
+
+                  {/* Share options for sending answer back to host */}
+                  <div className="flex gap-2 mt-3">
+                    {navigator.share && (
+                      <button
+                        onClick={() => {
+                          navigator.share({
+                            title: 'Game Connection',
+                            text: 'Paste this link to connect:',
+                            url: getJoinUrl(answerCode, true)
+                          }).catch(() => {});
+                        }}
+                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        Share
+                      </button>
+                    )}
+                    <a
+                      href={`sms:?&body=${encodeURIComponent(getJoinUrl(answerCode, true))}`}
+                      className="flex-1 py-3 bg-green-100 hover:bg-green-200 text-green-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Text
+                    </a>
+                    <a
+                      href={`mailto:?subject=${encodeURIComponent('Game Connection Link')}&body=${encodeURIComponent('Paste this link to connect:\n\n' + getJoinUrl(answerCode, true))}`}
+                      className="flex-1 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-medium flex items-center justify-center gap-2 min-h-[44px]"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </a>
+                  </div>
 
                   <div className="mt-4 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center gap-2">
