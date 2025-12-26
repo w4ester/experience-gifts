@@ -1,4 +1,4 @@
-const CACHE_NAME = 'experience-gifts-v2';
+const CACHE_NAME = 'experience-gifts-v3';
 const ASSETS = [
   '/',
   '/index.html',
