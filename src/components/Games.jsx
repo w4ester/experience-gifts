@@ -681,16 +681,6 @@ export default function Games({ onBack }) {
                 isHost={isHost}
               />
             )}
-
-            <button
-              onClick={() => {
-                setSelectedGame(null);
-                peerRef.current?.send({ type: 'game-select', game: null, initialState: null });
-              }}
-              className="w-full mt-6 py-3 border-2 border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 min-h-[48px] active:scale-[0.98] active:bg-gray-100 transition-all"
-            >
-              Choose Different Game
-            </button>
           </div>
         )}
 
