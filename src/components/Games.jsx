@@ -1,8 +1,9 @@
 // Games - Simple room codes via signaling server
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users, Circle, Flower2, Hand, Grid2X2, LogOut } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Gamepad2, Grid3X3, LayoutGrid, Type, Wifi, RefreshCw, HelpCircle, X, Users, Circle, Flower2, Hand, Grid2X2, LogOut, Hexagon } from 'lucide-react';
 import { PeerConnection } from '../utils/peerConnection';
 import { VALID_WORDS } from '../utils/wordList';
+import { BEE_WORDS } from '../utils/beeWordList';
 
 // Word list for Wordle answers - common 5-letter words (subset for answers)
 const ANSWER_WORDS = Array.from(VALID_WORDS).filter(w =>
@@ -242,6 +243,35 @@ export default function Games({ onBack }) {
           boxes: Array(size).fill(null).map(() => Array(size).fill(null)),
           currentPlayer: 1,
           scores: { 1: 0, 2: 0 },
+          gameOver: false
+        };
+      case 'spellingbee':
+        // Generate 7 unique letters with at least 2 vowels
+        const vowels = 'AEIOU'.split('');
+        const consonants = 'BCDFGHJKLMNPQRSTVWXYZ'.split('');
+        const shuffledVowels = vowels.sort(() => Math.random() - 0.5);
+        const shuffledConsonants = consonants.sort(() => Math.random() - 0.5);
+        const beeLetters = [
+          ...shuffledVowels.slice(0, 2),
+          ...shuffledConsonants.slice(0, 5)
+        ].sort(() => Math.random() - 0.5);
+        const centerLetter = beeLetters[0]; // First letter is center (required)
+
+        // Find all valid words for this puzzle
+        const letterSet = new Set(beeLetters);
+        const validBeeWords = Array.from(BEE_WORDS).filter(word => {
+          if (word.length < 4) return false;
+          if (!word.includes(centerLetter)) return false;
+          return word.split('').every(letter => letterSet.has(letter));
+        });
+
+        return {
+          letters: beeLetters,
+          centerLetter,
+          validWords: validBeeWords,
+          foundWords: [],
+          scores: { 1: 0, 2: 0 },
+          currentPlayer: 1,
           gameOver: false
         };
       default:
@@ -602,6 +632,21 @@ export default function Games({ onBack }) {
                     </div>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => selectGame('spellingbee')}
+                  className="bg-white rounded-2xl p-5 shadow-sm border-2 border-transparent hover:border-yellow-300 transition-all text-left active:scale-[0.98] active:bg-yellow-50 min-h-[72px]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                      <Hexagon className="w-6 h-6 text-yellow-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Spelling Bee</div>
+                      <div className="text-sm text-gray-500">Make words from 7 letters</div>
+                    </div>
+                  </div>
+                </button>
               </div>
             )}
 
@@ -675,6 +720,15 @@ export default function Games({ onBack }) {
                 playerRole={isHost ? 1 : 2}
                 onMove={sendGameState}
                 onNewGame={() => selectGame('dots')}
+                isHost={isHost}
+              />
+            )}
+            {selectedGame === 'spellingbee' && (
+              <SpellingBee
+                gameState={gameState}
+                playerRole={isHost ? 1 : 2}
+                onMove={sendGameState}
+                onNewGame={() => selectGame('spellingbee')}
                 isHost={isHost}
               />
             )}
@@ -1485,6 +1539,280 @@ function DotsAndBoxes({ gameState, playerRole, onMove, onNewGame, isHost }) {
           {isHost && (
             <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 mx-auto min-h-[44px]">
               <RefreshCw className="w-4 h-4" /> Play Again
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Spelling Bee Game Component
+function SpellingBee({ gameState, playerRole, onMove, onNewGame, isHost }) {
+  const { letters, centerLetter, validWords, foundWords, scores, currentPlayer, gameOver } = gameState;
+  const [currentWord, setCurrentWord] = useState('');
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState(''); // 'success', 'error', 'info'
+
+  const isMyTurn = currentPlayer === playerRole;
+
+  // Calculate points for a word
+  const getWordPoints = (word) => {
+    const isPangram = letters.every(l => word.includes(l));
+    const basePoints = word.length === 4 ? 1 : word.length;
+    return basePoints + (isPangram ? 7 : 0);
+  };
+
+  // Check if word is a pangram
+  const isPangram = (word) => letters.every(l => word.includes(l));
+
+  // Handle letter click
+  const handleLetterClick = (letter) => {
+    if (!isMyTurn || gameOver) return;
+    setCurrentWord(prev => prev + letter);
+    setMessage('');
+  };
+
+  // Handle submit
+  const handleSubmit = () => {
+    if (!isMyTurn || gameOver || currentWord.length < 4) return;
+
+    const word = currentWord.toUpperCase();
+
+    // Check if word includes center letter
+    if (!word.includes(centerLetter)) {
+      setMessage('Must include center letter!');
+      setMessageType('error');
+      return;
+    }
+
+    // Check if word only uses valid letters
+    const letterSet = new Set(letters);
+    if (!word.split('').every(l => letterSet.has(l))) {
+      setMessage('Invalid letters used!');
+      setMessageType('error');
+      return;
+    }
+
+    // Check if word is in valid words list
+    if (!validWords.includes(word)) {
+      setMessage('Not in word list!');
+      setMessageType('error');
+      return;
+    }
+
+    // Check if already found
+    if (foundWords.includes(word)) {
+      setMessage('Already found!');
+      setMessageType('error');
+      return;
+    }
+
+    // Valid word! Add points
+    const points = getWordPoints(word);
+    const newScores = { ...scores, [currentPlayer]: scores[currentPlayer] + points };
+    const newFoundWords = [...foundWords, word];
+
+    // Check if game is over (found all words or reached score limit)
+    const totalPossible = validWords.length;
+    const isOver = newFoundWords.length >= totalPossible || newScores[1] >= 50 || newScores[2] >= 50;
+
+    setMessage(isPangram(word) ? `PANGRAM! +${points} points!` : `+${points} point${points > 1 ? 's' : ''}!`);
+    setMessageType('success');
+
+    onMove({
+      ...gameState,
+      foundWords: newFoundWords,
+      scores: newScores,
+      currentPlayer: currentPlayer === 1 ? 2 : 1,
+      gameOver: isOver
+    });
+
+    setCurrentWord('');
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    setCurrentWord(prev => prev.slice(0, -1));
+    setMessage('');
+  };
+
+  // Handle shuffle (rearranges outer letters)
+  const handleShuffle = () => {
+    // Only shuffle, don't send to peer - just local visual
+  };
+
+  // Handle keyboard input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isMyTurn || gameOver) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleDelete();
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
+        const letter = e.key.toUpperCase();
+        if (letters.includes(letter)) {
+          e.preventDefault();
+          handleLetterClick(letter);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMyTurn, gameOver, currentWord, letters]);
+
+  // Determine winner
+  const getWinner = () => {
+    if (!gameOver) return null;
+    if (scores[1] > scores[2]) return 1;
+    if (scores[2] > scores[1]) return 2;
+    return 'tie';
+  };
+
+  const winner = getWinner();
+
+  return (
+    <div className="text-center">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Spelling Bee</h3>
+
+      {/* Scores */}
+      <div className="flex justify-center gap-6 mb-3">
+        <div className={`px-4 py-1 rounded-full ${playerRole === 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+          You: {scores[playerRole]}
+        </div>
+        <div className={`px-4 py-1 rounded-full ${playerRole === 2 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+          Them: {scores[playerRole === 1 ? 2 : 1]}
+        </div>
+      </div>
+
+      {!gameOver && (
+        <p className="text-gray-500 mb-3 text-sm">
+          {isMyTurn ? "Your turn! Make a word" : "Waiting for their word..."}
+        </p>
+      )}
+
+      {/* Message */}
+      {message && (
+        <p className={`text-sm mb-2 font-medium ${messageType === 'success' ? 'text-green-500' : messageType === 'error' ? 'text-red-500' : 'text-gray-500'}`}>
+          {message}
+        </p>
+      )}
+
+      {/* Current word display */}
+      <div className="h-10 mb-3 flex items-center justify-center">
+        <span className="text-2xl font-bold tracking-wider text-gray-800">
+          {currentWord || <span className="text-gray-300">Type a word</span>}
+        </span>
+      </div>
+
+      {/* Honeycomb - simplified hexagon layout */}
+      <div className="flex flex-col items-center gap-2 mb-4">
+        {/* Top row - 2 letters */}
+        <div className="flex gap-2">
+          {letters.slice(1, 3).map((letter, i) => (
+            <button
+              key={i}
+              onClick={() => handleLetterClick(letter)}
+              disabled={!isMyTurn || gameOver}
+              className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-xl text-gray-800 disabled:opacity-50 transition-all active:scale-95"
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+        {/* Middle row - center + 2 */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleLetterClick(letters[3])}
+            disabled={!isMyTurn || gameOver}
+            className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-xl text-gray-800 disabled:opacity-50 transition-all active:scale-95"
+          >
+            {letters[3]}
+          </button>
+          <button
+            onClick={() => handleLetterClick(centerLetter)}
+            disabled={!isMyTurn || gameOver}
+            className="w-14 h-14 bg-yellow-400 hover:bg-yellow-500 rounded-lg font-bold text-2xl text-gray-800 disabled:opacity-50 transition-all active:scale-95 shadow-md"
+          >
+            {centerLetter}
+          </button>
+          <button
+            onClick={() => handleLetterClick(letters[4])}
+            disabled={!isMyTurn || gameOver}
+            className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-xl text-gray-800 disabled:opacity-50 transition-all active:scale-95"
+          >
+            {letters[4]}
+          </button>
+        </div>
+        {/* Bottom row - 2 letters */}
+        <div className="flex gap-2">
+          {letters.slice(5, 7).map((letter, i) => (
+            <button
+              key={i}
+              onClick={() => handleLetterClick(letter)}
+              disabled={!isMyTurn || gameOver}
+              className="w-12 h-12 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-xl text-gray-800 disabled:opacity-50 transition-all active:scale-95"
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex justify-center gap-3 mb-4">
+        <button
+          onClick={handleDelete}
+          disabled={!isMyTurn || gameOver || currentWord.length === 0}
+          className="px-4 py-2 border-2 border-gray-300 rounded-full text-gray-600 font-medium disabled:opacity-50 min-h-[44px]"
+        >
+          Delete
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!isMyTurn || gameOver || currentWord.length < 4}
+          className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-full text-gray-800 font-bold disabled:opacity-50 min-h-[44px]"
+        >
+          Enter
+        </button>
+      </div>
+
+      {/* Found words */}
+      <div className="bg-gray-50 rounded-xl p-3 max-h-32 overflow-y-auto">
+        <div className="text-xs text-gray-500 mb-2">
+          Found: {foundWords.length} / {validWords.length} words
+        </div>
+        <div className="flex flex-wrap gap-1 justify-center">
+          {foundWords.map((word, i) => (
+            <span
+              key={i}
+              className={`px-2 py-0.5 rounded text-xs font-medium ${
+                isPangram(word) ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {word}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Game over */}
+      {gameOver && (
+        <div className="mt-4">
+          <div className={`text-xl font-bold ${winner === playerRole ? 'text-green-600' : winner === 'tie' ? 'text-gray-600' : 'text-red-600'}`}>
+            {winner === 'tie' ? "It's a tie!" : winner === playerRole ? 'You win!' : 'They win!'}
+          </div>
+          <div className="text-gray-500 mt-1">
+            Final: {scores[1]} - {scores[2]}
+          </div>
+          {isHost && (
+            <button onClick={onNewGame} className="mt-4 px-6 py-2 bg-yellow-400 text-gray-800 rounded-full font-bold flex items-center gap-2 mx-auto min-h-[44px]">
+              <RefreshCw className="w-4 h-4" /> New Puzzle
             </button>
           )}
         </div>
