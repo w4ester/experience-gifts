@@ -1575,7 +1575,13 @@ function SpellingBee({ gameState, playerRole, onMove, onNewGame, isHost }) {
 
   // Handle submit
   const handleSubmit = () => {
-    if (!isMyTurn || gameOver || currentWord.length < 4) return;
+    if (!isMyTurn || gameOver) return;
+
+    if (currentWord.length < 4) {
+      setMessage('Too short! Need 4+ letters');
+      setMessageType('error');
+      return;
+    }
 
     const word = currentWord.toUpperCase();
 
@@ -1775,7 +1781,7 @@ function SpellingBee({ gameState, playerRole, onMove, onNewGame, isHost }) {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!isMyTurn || gameOver || currentWord.length < 4}
+          disabled={!isMyTurn || gameOver || currentWord.length === 0}
           className="px-6 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-full text-gray-800 font-bold disabled:opacity-50 min-h-[44px]"
         >
           Enter
